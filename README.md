@@ -2,20 +2,28 @@
 
 ## 1. Giới thiệu
 
-Đây là project môn `IE212 - Công nghệ dữ liệu lớn`, xuất phát từ bài toán dự đoán giá cổ phiếu dựa trên mô hình lai giữa `LSTM` và `GNN`, đồng thời có thêm phần cải tiến ở local ML phase.
+Đây là project môn `IE212 - Công nghệ dữ liệu lớn`, tập trung vào bài toán dự đoán giá cổ phiếu bằng mô hình lai giữa `LSTM` và `GNN`, sau đó từng bước tích hợp mô hình vào một hệ thống Big Data hoàn chỉnh.
 
 Project hiện được triển khai theo 2 giai đoạn chính:
 
 - `Giai đoạn 1 - Local ML Project`
-  - Chạy notebook gốc
-  - Tách code từ notebook thành project Python có cấu trúc
-  - Chạy experiment ngoài notebook
-  - Lưu checkpoint và model artifact
-  - Kiểm tra load lại checkpoint
+  - chạy notebook nghiên cứu
+  - tách code khỏi notebook thành project Python có cấu trúc
+  - chạy experiment ngoài notebook
+  - lưu checkpoint model
+  - kiểm tra load lại checkpoint
 - `Giai đoạn 2 - Big Data System`
-  - Dựng hạ tầng bằng `Docker Compose`
-  - Bắt đầu từ storage layer với `PostgreSQL` và `MinIO`
-  - Các bước tiếp theo sẽ là `Kafka`, `Spark`, `Airflow`, `FastAPI` và tích hợp model vào pipeline Big Data
+  - dựng hạ tầng bằng Docker Compose
+  - bắt đầu từ storage layer:
+    - `PostgreSQL`
+    - `MinIO`
+  - sau đó mở rộng sang streaming layer:
+    - `Kafka`
+  - các bước tiếp theo sẽ là:
+    - `Spark`
+    - `Airflow`
+    - `FastAPI`
+    - tích hợp model vào pipeline Big Data
 
 ## 2. Trạng thái hiện tại
 
@@ -23,20 +31,22 @@ Project hiện được triển khai theo 2 giai đoạn chính:
 
 #### Local ML phase
 
-- Tạo môi trường `.venv`
-- Cài dependencies qua `requirements.txt`
-- Chạy notebook thành công trong VS Code
-- Tách code khỏi notebook thành các module trong `src/`
-- Tạo các script trong `scripts/`
-- Chạy experiment ngoài notebook
-- Lưu checkpoint model
-- Load lại checkpoint thành công
+- tạo môi trường `.venv`
+- cài dependencies qua `requirements.txt`
+- chạy notebook thành công trong VS Code
+- tách code từ notebook thành các module trong `src/`
+- tạo các script trong `scripts/`
+- chạy experiment ngoài notebook thành công
+- lưu checkpoint model thành công
+- load lại checkpoint thành công
 
 #### Big Data phase
 
-- Tạo thư mục `compose/`
-- Dựng thành công `PostgreSQL`
-- Dựng thành công `MinIO`
+- tạo thư mục `compose/`
+- dựng thành công các service đầu tiên bằng Docker Compose:
+  - `PostgreSQL`
+  - `MinIO`
+  - `Kafka`
 - PostgreSQL đã được khởi tạo:
   - schema `stock`
   - bảng `stock.predictions`
@@ -46,6 +56,10 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - `processed`
   - `models`
   - `artifacts`
+- Kafka đã được kiểm tra thành công:
+  - tạo topic `stock-price`
+  - producer gửi message vào topic
+  - consumer đọc lại message từ topic
 
 ## 3. Cấu trúc thư mục hiện tại
 
@@ -59,32 +73,11 @@ IE212/
 │       └── init/
 │           └── 001_init.sql
 ├── data/
-│   ├── processed/
-│   └── raw/
 ├── models/
 ├── notebooks/
-│   └── stock-predictionv9.ipynb
 ├── outputs/
 ├── scripts/
-│   ├── __init__.py
-│   ├── run_experiment.py
-│   ├── run_train.py
-│   ├── test_expanding_data.py
-│   ├── test_graph_builder.py
-│   ├── test_load_checkpoint.py
-│   ├── test_model_forward.py
-│   └── test_prepare_step.py
 ├── src/
-│   ├── __init__.py
-│   ├── artifacts.py
-│   ├── config.py
-│   ├── data_loader.py
-│   ├── dataset.py
-│   ├── expanding.py
-│   ├── features.py
-│   ├── graph_builder.py
-│   ├── models.py
-│   └── train_eval.py
 ├── .gitignore
 ├── README.md
 └── requirements.txt
@@ -93,13 +86,13 @@ IE212/
 ## 4. Ý nghĩa các thư mục chính
 
 - `src/`: mã nguồn chính sau khi tách khỏi notebook
-- `scripts/`: các script test, train và evaluate
+- `scripts/`: các script test, train, evaluate, experiment
 - `notebooks/`: notebook nghiên cứu gốc
 - `data/`: dữ liệu raw và processed
 - `outputs/`: kết quả thực nghiệm
 - `models/`: checkpoint model và metadata
-- `compose/`: cấu hình Docker Compose cho Big Data services
-- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu cho PostgreSQL
+- `compose/`: Docker Compose cho các service Big Data
+- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu
 
 ## 5. Các lệnh local ML đã dùng
 
@@ -109,7 +102,7 @@ IE212/
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Chạy các script kiểm tra và thực nghiệm
+### Chạy các script local ML
 
 ```bash
 python -m scripts.run_train
@@ -121,24 +114,23 @@ python -m scripts.run_experiment
 python -m scripts.test_load_checkpoint
 ```
 
-### Ý nghĩa nhanh của từng script
+### Ý nghĩa nhanh
 
-- `run_train`: load dữ liệu và chạy pipeline train cơ bản
+- `run_train`: chạy pipeline train cơ bản
 - `test_model_forward`: kiểm tra forward pass của model
-- `test_expanding_data`: kiểm tra expanding window data preparation
+- `test_expanding_data`: kiểm tra chuẩn bị dữ liệu theo expanding window
 - `test_graph_builder`: kiểm tra graph construction
-- `test_prepare_step`: kiểm tra dữ liệu train, val, test cho từng expanding step
+- `test_prepare_step`: kiểm tra train, val, test pack cho từng expanding step
 - `run_experiment`: chạy thực nghiệm ngoài notebook
 - `test_load_checkpoint`: kiểm tra load lại checkpoint đã lưu
 
-## 6. Big Data phase - Storage layer đầu tiên
+## 6. Big Data phase - Storage layer và Streaming layer đầu tiên
 
-Hiện tại project đã dựng thành công 2 service đầu tiên bằng Docker Compose:
+Hiện tại project đã dựng thành công 3 service đầu tiên bằng Docker Compose:
 
-- `PostgreSQL`: dùng để lưu metadata, prediction results và model registry
-- `MinIO`: dùng làm object storage kiểu S3 cho raw data, processed data, models và artifacts
-
-Ngoài 2 service chính, `compose.yaml` còn có `minio-bootstrap` để tự động tạo bucket cần thiết khi khởi động hệ thống.
+- `PostgreSQL`: lưu metadata, prediction results, model registry
+- `MinIO`: object storage kiểu S3 cho raw data, processed data, models, artifacts
+- `Kafka`: message broker cho data streaming và event-driven pipeline
 
 ## 7. Cấu hình Docker Compose hiện tại
 
@@ -148,10 +140,11 @@ Các file liên quan:
 - `compose/.env`
 - `compose/postgres/init/001_init.sql`
 
-### Service hiện có
+### Service đang có
 
 - `ie212-postgres`
 - `ie212-minio`
+- `ie212-kafka`
 
 ### Bucket MinIO đã có
 
@@ -160,7 +153,11 @@ Các file liên quan:
 - `models`
 - `artifacts`
 
-## 8. Cách chạy PostgreSQL và MinIO
+### Topic Kafka đã test
+
+- `stock-price`
+
+## 8. Cách chạy các service hiện tại
 
 ### Bước 1: đi vào thư mục `compose`
 
@@ -168,7 +165,7 @@ Các file liên quan:
 cd compose
 ```
 
-### Bước 2: khởi động container
+### Bước 2: khởi động các container
 
 ```bash
 docker compose up -d
@@ -194,7 +191,7 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
 ```
 
-Kết quả mong đợi:
+### Kết quả mong đợi
 
 - schema `stock`
 - bảng `stock.predictions`
@@ -210,19 +207,21 @@ curl.exe -i http://localhost:9000/minio/health/live
 
 ### Mở giao diện web
 
-Truy cập trình duyệt tại:
+Truy cập trình duyệt:
 
 ```text
 http://localhost:9001
 ```
 
-Thông tin đăng nhập hiện tại được cấu hình trong file:
+### Thông tin đăng nhập
+
+Xem trong file:
 
 ```text
 compose/.env
 ```
 
-Giá trị hiện tại trong repo:
+Ví dụ hiện tại:
 
 ```text
 user: minioadmin
@@ -231,7 +230,57 @@ password: change_me_minio
 
 Nên đổi password mặc định trước khi dùng lâu dài.
 
-## 11. Các lệnh quản lý Docker Compose
+## 11. Các lệnh kiểm tra Kafka
+
+### Khởi động Kafka riêng
+
+```bash
+docker compose up -d kafka
+```
+
+### Kiểm tra log Kafka
+
+```bash
+docker compose logs kafka --tail=50
+```
+
+### Tạo topic test
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-topics.sh --create --topic stock-price --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+```
+
+### Liệt kê topic
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+```
+
+### Gửi message bằng producer
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-producer.sh --topic stock-price --bootstrap-server localhost:9092
+```
+
+Ví dụ message:
+
+```json
+{"symbol":"AAPL","price":210.15}
+{"symbol":"MSFT","price":438.20}
+{"symbol":"AMD","price":167.05}
+```
+
+### Đọc message bằng consumer
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-consumer.sh --topic stock-price --from-beginning --bootstrap-server localhost:9092 --max-messages 3
+```
+
+### Kết quả mong đợi
+
+Consumer đọc lại đúng 3 message đã gửi vào topic `stock-price`.
+
+## 12. Các lệnh quản lý Docker Compose
 
 ### Xem service đang chạy
 
@@ -257,6 +306,12 @@ docker compose logs postgres
 docker compose logs minio
 ```
 
+### Xem log Kafka
+
+```bash
+docker compose logs kafka
+```
+
 ### Tắt hệ thống
 
 ```bash
@@ -271,44 +326,53 @@ docker compose down -v
 
 `Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL và MinIO local.
 
-## 12. Những gì đã xác nhận thành công
+## 13. Những gì đã xác nhận thành công
 
 ### Local ML
 
-- Notebook chạy được
-- Code sau khi tách vẫn chạy ổn
-- Experiment chạy ngoài notebook thành công
-- Checkpoint model đã lưu thành công
-- Checkpoint đã load lại thành công
+- notebook chạy được
+- code sau khi tách vẫn chạy ổn
+- experiment chạy ngoài notebook thành công
+- checkpoint model đã lưu thành công
+- checkpoint đã load lại thành công
 
-### Big Data storage
+### Big Data - Storage
 
 - PostgreSQL container chạy healthy
-- Schema `stock` đã được tạo
-- Bảng `predictions` và `model_registry` đã được tạo
+- schema `stock` đã được tạo
+- bảng `predictions` và `model_registry` đã được tạo
 - MinIO web UI truy cập được
-- Bucket `raw`, `processed`, `models`, `artifacts` đã được tạo
+- bucket `raw`, `processed`, `models`, `artifacts` đã được tạo
 
-## 13. Bước tiếp theo
+### Big Data - Streaming
 
-Sau storage layer, roadmap tiếp theo của project là:
+- Kafka container chạy healthy
+- topic `stock-price` đã được tạo
+- producer gửi được message
+- consumer đọc lại được message
+- smoke test Kafka thành công
 
-- Dựng `Kafka` bằng Docker Compose
-- Tạo producer và consumer test
-- Dựng `Spark` để xử lý dữ liệu
-- Dựng `Airflow` để orchestration pipeline
-- Dựng `FastAPI` để serving model
-- Tích hợp model local hiện tại vào hệ thống Big Data
+## 14. Bước tiếp theo
 
-## 14. Ghi chú
+Roadmap tiếp theo của project là:
 
-- Hiện tại project đang chạy tốt ở phase local ML
-- Big Data phase mới hoàn thành bước đầu là storage layer
-- Đây là điểm checkpoint phù hợp trước khi sang Kafka
-- Notebook gốc vẫn được giữ trong `notebooks/` để đối chiếu logic và kết quả khi cần
-- Hướng phát triển chính từ thời điểm này là ưu tiên chạy bằng script trong `scripts/` và tái sử dụng code trong `src/`
+- dựng `Spark` bằng Docker Compose
+- chạy Spark standalone smoke test
+- xử lý dữ liệu batch bằng Spark
+- kết nối Spark với Kafka
+- dựng `Airflow` để orchestration pipeline
+- dựng `FastAPI` để serving model
+- tích hợp model local hiện tại vào hệ thống Big Data
 
-## 15. Quick Start ngắn gọn
+## 15. Ghi chú
+
+- local ML phase hiện đã hoàn thành ở mức đủ tốt để chuyển sang hạ tầng
+- Big Data phase hiện đã hoàn thành:
+  - storage layer đầu tiên
+  - streaming layer đầu tiên
+- đây là checkpoint rất tốt trước khi dựng Spark
+
+## 16. Quick start ngắn gọn
 
 ### Local ML
 
@@ -318,15 +382,32 @@ python -m scripts.run_experiment
 python -m scripts.test_load_checkpoint
 ```
 
-### Big Data storage
+### Big Data services
 
 ```bash
 cd compose
 docker compose up -d
 docker compose ps
+```
+
+### Kiểm tra PostgreSQL
+
+```bash
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
+```
+
+### Kiểm tra MinIO
+
+```bash
 curl.exe -i http://localhost:9000/minio/health/live
+```
+
+### Kiểm tra Kafka
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-consumer.sh --topic stock-price --from-beginning --bootstrap-server localhost:9092 --max-messages 3
 ```
 
 ### MinIO UI
@@ -335,10 +416,10 @@ curl.exe -i http://localhost:9000/minio/health/live
 http://localhost:9001
 ```
 
-## 16. Tác giả / mục đích
+## 17. Mục đích project
 
-Project phục vụ các mục tiêu:
+Project phục vụ:
 
-- Nghiên cứu và tái hiện bài toán dự đoán giá cổ phiếu
-- Cải tiến mô hình local ML
-- Triển khai pipeline Big Data end-to-end cho đồ án môn IE212
+- tái hiện và cải tiến bài toán dự đoán giá cổ phiếu bằng mô hình hybrid temporal-relational
+- triển khai pipeline Big Data end-to-end cho đồ án môn IE212
+- làm nền tảng để tích hợp Spark, Kafka, Airflow, FastAPI và model serving trong các bước tiếp theo
