@@ -90,6 +90,10 @@ services:
     container_name: ie212-spark-master
     hostname: spark-master
     restart: unless-stopped
+    environment:
+      HOME: /tmp
+      SPARK_LOCAL_DIRS: /tmp/spark-local
+      SPARK_SUBMIT_OPTS: "-Divy.home=/opt/spark/work-dir/.ivy2 -Divy.cache.dir=/opt/spark/work-dir/.ivy2/cache -Duser.home=/opt/spark/work-dir"
     command:
       [
         "/opt/spark/bin/spark-class",
@@ -106,6 +110,7 @@ services:
       - "${SPARK_MASTER_WEBUI_PORT}:${SPARK_MASTER_WEBUI_PORT}"
     volumes:
       - ../services/spark/jobs:/opt/spark/jobs
+      - spark_ivy_cache:/tmp/.ivy2
     networks:
       - bigdata_net
 
@@ -116,6 +121,10 @@ services:
     restart: unless-stopped
     depends_on:
       - spark-master
+    environment:
+      HOME: /tmp
+      SPARK_LOCAL_DIRS: /tmp/spark-local
+      SPARK_SUBMIT_OPTS: "-Divy.home=/opt/spark/work-dir/.ivy2 -Divy.cache.dir=/opt/spark/work-dir/.ivy2/cache -Duser.home=/opt/spark/work-dir"
     command:
       [
         "/opt/spark/bin/spark-class",
@@ -132,12 +141,14 @@ services:
       - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
     volumes:
       - ../services/spark/jobs:/opt/spark/jobs
+      - spark_ivy_cache:/tmp/.ivy2
     networks:
       - bigdata_net
 
 volumes:
   postgres_data:
   minio_data:
+  spark_ivy_cache:
 
 networks:
   bigdata_net:

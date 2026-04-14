@@ -14,14 +14,17 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - kiểm tra load lại checkpoint
 - `Giai đoạn 2 - Big Data System`
   - dựng hạ tầng bằng Docker Compose
-  - bắt đầu từ storage layer:
+  - storage layer:
     - `PostgreSQL`
     - `MinIO`
-  - sau đó mở rộng sang streaming layer:
+  - streaming layer:
     - `Kafka`
-  - tiếp tục sang processing layer:
-    - `Spark`
+  - processing layer:
+    - `Spark standalone`
+    - `Spark batch read từ Kafka`
+    - `Spark structured streaming từ Kafka`
   - các bước tiếp theo sẽ là:
+    - ghi dữ liệu Spark sang MinIO hoặc PostgreSQL
     - `Airflow`
     - `FastAPI`
     - tích hợp model vào pipeline Big Data
@@ -48,7 +51,8 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - `PostgreSQL`
   - `MinIO`
   - `Kafka`
-  - `Spark standalone`
+  - `Spark Master`
+  - `Spark Worker`
 - PostgreSQL đã được khởi tạo:
   - schema `stock`
   - bảng `stock.predictions`
@@ -63,10 +67,10 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - producer gửi message vào topic
   - consumer đọc lại message từ topic
 - Spark đã được kiểm tra thành công:
-  - chạy `spark-master` và `spark-worker`
-  - worker đăng ký thành công với master
-  - chạy `spark-submit` thành công
-  - job test đọc dữ liệu mẫu và in ra `Row count = 3`
+  - chạy Spark standalone smoke test
+  - submit job `simple_spark_check.py`
+  - đọc batch từ Kafka bằng `read_kafka_batch.py`
+  - đọc stream từ Kafka bằng `read_kafka_stream.py`
 
 ## 3. Cấu trúc thư mục hiện tại
 
@@ -82,7 +86,9 @@ IE212/
 ├── services/
 │   └── spark/
 │       └── jobs/
-│           └── simple_spark_check.py
+│           ├── simple_spark_check.py
+│           ├── read_kafka_batch.py
+│           └── read_kafka_stream.py
 ├── data/
 ├── models/
 ├── notebooks/
@@ -104,7 +110,7 @@ IE212/
 - `models/`: checkpoint model và metadata
 - `compose/`: Docker Compose cho các service Big Data
 - `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu
-- `services/spark/jobs/simple_spark_check.py`: job Spark dùng để smoke test processing layer
+- `services/spark/jobs/`: các job Spark dùng để smoke test, đọc batch và đọc stream từ Kafka
 
 ## 5. Các lệnh local ML đã dùng
 
@@ -136,15 +142,23 @@ python -m scripts.test_load_checkpoint
 - `run_experiment`: chạy thực nghiệm ngoài notebook
 - `test_load_checkpoint`: kiểm tra load lại checkpoint đã lưu
 
-## 6. Big Data phase - Storage, Streaming và Processing layer đầu tiên
+## 6. Big Data phase - Storage, Streaming, Processing
 
-Hiện tại project đã dựng thành công 5 service đầu tiên bằng Docker Compose:
+Hiện tại project đã dựng thành công các service Big Data đầu tiên bằng Docker Compose:
 
-- `PostgreSQL`: lưu metadata, prediction results, model registry
-- `MinIO`: object storage kiểu S3 cho raw data, processed data, models, artifacts
-- `Kafka`: message broker cho data streaming và event-driven pipeline
-- `Spark Master`: điều phối job Spark standalone
-- `Spark Worker`: thực thi job Spark và đăng ký với master
+### Storage layer
+
+- `PostgreSQL`
+- `MinIO`
+
+### Streaming layer
+
+- `Kafka`
+
+### Processing layer
+
+- `Spark Master`
+- `Spark Worker`
 
 ## 7. Cấu hình Docker Compose hiện tại
 
@@ -173,10 +187,6 @@ Các file liên quan:
 
 - `stock-price`
 
-### File job Spark test
-
-- `services/spark/jobs/simple_spark_check.py`
-
 ## 8. Cách chạy các service hiện tại
 
 ### Bước 1: đi vào thư mục `compose`
@@ -185,7 +195,7 @@ Các file liên quan:
 cd compose
 ```
 
-### Bước 2: khởi động các container
+### Bước 2: khởi động toàn bộ container hiện tại
 
 ```bash
 docker compose up -d
@@ -241,13 +251,6 @@ Xem trong file:
 compose/.env
 ```
 
-Ví dụ hiện tại:
-
-```text
-user: minioadmin
-password: change_me_minio
-```
-
 Nên đổi password mặc định trước khi dùng lâu dài.
 
 ## 11. Các lệnh kiểm tra Kafka
@@ -298,9 +301,120 @@ docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-consumer.sh --topic sto
 
 ### Kết quả mong đợi
 
-Consumer đọc lại đúng 3 message đã gửi vào topic `stock-price`.
+Consumer đọc lại đúng message đã gửi vào topic `stock-price`.
 
-## 12. Các lệnh quản lý Docker Compose
+## 12. Các lệnh kiểm tra Spark standalone
+
+### Khởi động Spark
+
+```bash
+docker compose up -d spark-master spark-worker
+```
+
+### Kiểm tra trạng thái
+
+```bash
+docker compose ps
+```
+
+### Spark Master UI
+
+```text
+http://localhost:8080
+```
+
+### Spark Worker UI
+
+```text
+http://localhost:8081
+```
+
+### Chạy smoke test Spark
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/jobs/simple_spark_check.py
+```
+
+### Kết quả mong đợi
+
+- Spark Master và Spark Worker chạy ổn
+- Worker đăng ký thành công với Master
+- job `ie212-spark-check` chạy thành công
+- DataFrame hiển thị 3 dòng dữ liệu mẫu
+- `Row count = 3`
+
+## 13. Spark batch read từ Kafka
+
+### File job
+
+```text
+services/spark/jobs/read_kafka_batch.py
+```
+
+### Chạy batch job
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_batch.py
+```
+
+### Chức năng
+
+- đọc dữ liệu batch từ topic `stock-price`
+- hiển thị schema gốc từ Kafka
+- hiển thị raw message
+- parse JSON trong cột `value`
+- đếm số dòng dữ liệu đọc được
+
+### Kết quả mong đợi
+
+- thấy schema Kafka với các cột như `key`, `value`, `topic`, `partition`, `offset`, `timestamp`
+- thấy dữ liệu raw từ Kafka
+- parse được JSON thành các cột:
+  - `symbol`
+  - `price`
+- `Row count = 3`
+
+## 14. Spark Structured Streaming từ Kafka
+
+### File job
+
+```text
+services/spark/jobs/read_kafka_stream.py
+```
+
+### Chạy stream job
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_stream.py
+```
+
+### Gửi thêm dữ liệu bằng Kafka producer
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-producer.sh --topic stock-price --bootstrap-server localhost:9092
+```
+
+Ví dụ:
+
+```json
+{"symbol":"NVDA","price":912.30}
+{"symbol":"GOOGL","price":158.40}
+{"symbol":"TSLA","price":171.25}
+```
+
+### Chức năng
+
+- Spark lắng nghe dữ liệu mới từ Kafka
+- parse JSON từ message
+- in dữ liệu ra console theo từng micro-batch
+
+### Kết quả mong đợi
+
+- Spark in ra các batch mới khi Kafka nhận thêm message
+- thấy các mã mới như `NVDA`, `GOOGL`, `TSLA`
+- xác nhận luồng `Kafka -> Spark streaming` hoạt động
+
+## 15. Các lệnh quản lý Docker Compose
 
 ### Xem service đang chạy
 
@@ -356,59 +470,9 @@ docker compose down
 docker compose down -v
 ```
 
-`Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL và MinIO local.
+`Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL, MinIO và các volume liên quan.
 
-## 13. Big Data phase - Processing layer đầu tiên
-
-Project hiện đã dựng thành công thêm `Spark standalone` bằng Docker Compose.
-
-### Service Spark hiện có
-
-- `ie212-spark-master`
-- `ie212-spark-worker`
-
-### File job test
-
-- `services/spark/jobs/simple_spark_check.py`
-
-### Những gì đã kiểm tra thành công
-
-- Spark Master UI truy cập được tại `http://localhost:8080`
-- Spark Worker UI truy cập được tại `http://localhost:8081`
-- Worker đã đăng ký thành công với master
-- Chạy `spark-submit` thành công
-- Spark đọc được dữ liệu mẫu và in ra DataFrame 3 dòng
-- `Row count = 3`
-
-### Lệnh chạy Spark
-
-Khởi động Spark:
-
-```powershell
-docker compose up -d spark-master spark-worker
-```
-
-Kiểm tra trạng thái:
-
-```bash
-docker compose ps
-```
-
-Chạy job test:
-
-```bash
-docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/jobs/simple_spark_check.py
-```
-
-### Kết quả mong đợi
-
-- thấy Spark Master và Spark Worker đang chạy
-- vào được `localhost:8080`
-- vào được `localhost:8081`
-- job `ie212-spark-check` chạy thành công
-- output hiển thị 3 dòng dữ liệu mẫu và row count bằng 3
-
-## 14. Những gì đã xác nhận thành công
+## 16. Những gì đã xác nhận thành công
 
 ### Local ML
 
@@ -436,33 +500,32 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 
 ### Big Data - Processing
 
-- Spark Master UI truy cập được
-- Spark Worker UI truy cập được
-- Spark Worker đã đăng ký với Spark Master
-- `spark-submit` chạy thành công
-- job test đọc được dữ liệu mẫu
-- kết quả `Row count = 3`
+- Spark Master và Spark Worker chạy ổn
+- Spark standalone smoke test thành công
+- Spark batch đọc Kafka thành công
+- Spark structured streaming đọc Kafka thành công
+- pipeline cơ bản `Kafka -> Spark` đã hoạt động
 
-## 15. Bước tiếp theo
+## 17. Bước tiếp theo
 
 Roadmap tiếp theo của project là:
 
-- xử lý dữ liệu batch bằng Spark
-- kết nối Spark với Kafka
+- cho Spark ghi dữ liệu sang MinIO hoặc PostgreSQL
+- xây pipeline dữ liệu trung gian để chuẩn bị cho model serving
 - dựng `Airflow` để orchestration pipeline
 - dựng `FastAPI` để serving model
-- tích hợp model local hiện tại vào hệ thống Big Data
+- tích hợp model local hiện tại vào hệ thống Big Data end-to-end
 
-## 16. Ghi chú
+## 18. Ghi chú
 
 - local ML phase hiện đã hoàn thành ở mức đủ tốt để chuyển sang hạ tầng
 - Big Data phase hiện đã hoàn thành:
   - storage layer đầu tiên
   - streaming layer đầu tiên
   - processing layer đầu tiên
-- đây là checkpoint rất tốt trước khi sang bước tiếp theo
+- đây là checkpoint rất tốt trước khi sang bước ghi dữ liệu ra sink hoặc orchestration
 
-## 17. Quick start ngắn gọn
+## 19. Quick start ngắn gọn
 
 ### Local ML
 
@@ -487,12 +550,6 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
 ```
 
-### Kiểm tra MinIO
-
-```bash
-curl.exe -i http://localhost:9000/minio/health/live
-```
-
 ### Kiểm tra Kafka
 
 ```bash
@@ -500,27 +557,27 @@ docker exec -it ie212-kafka /opt/kafka/bin/kafka-topics.sh --list --bootstrap-se
 docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-consumer.sh --topic stock-price --from-beginning --bootstrap-server localhost:9092 --max-messages 3
 ```
 
-### Kiểm tra Spark
+### Kiểm tra Spark batch
 
 ```bash
-docker compose up -d spark-master spark-worker
-docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/jobs/simple_spark_check.py
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_batch.py
 ```
 
-### MinIO UI
+### Kiểm tra Spark stream
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_stream.py
+```
+
+### UI
 
 ```text
-http://localhost:9001
+MinIO: http://localhost:9001
+Spark Master: http://localhost:8080
+Spark Worker: http://localhost:8081
 ```
 
-### Spark UI
-
-```text
-http://localhost:8080
-http://localhost:8081
-```
-
-## 18. Mục đích project
+## 20. Mục đích project
 
 Project phục vụ:
 
