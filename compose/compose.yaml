@@ -84,6 +84,56 @@ services:
       start_period: 20s
     networks:
       - bigdata_net
+  
+  spark-master:
+    image: ${SPARK_IMAGE}
+    container_name: ie212-spark-master
+    hostname: spark-master
+    restart: unless-stopped
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master",
+        "--host",
+        "spark-master",
+        "--port",
+        "${SPARK_MASTER_PORT}",
+        "--webui-port",
+        "${SPARK_MASTER_WEBUI_PORT}"
+      ]
+    ports:
+      - "${SPARK_MASTER_PORT}:${SPARK_MASTER_PORT}"
+      - "${SPARK_MASTER_WEBUI_PORT}:${SPARK_MASTER_WEBUI_PORT}"
+    volumes:
+      - ../services/spark/jobs:/opt/spark/jobs
+    networks:
+      - bigdata_net
+
+  spark-worker:
+    image: ${SPARK_IMAGE}
+    container_name: ie212-spark-worker
+    hostname: spark-worker
+    restart: unless-stopped
+    depends_on:
+      - spark-master
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "spark://spark-master:${SPARK_MASTER_PORT}",
+        "--webui-port",
+        "${SPARK_WORKER_WEBUI_PORT}",
+        "--cores",
+        "${SPARK_WORKER_CORES}",
+        "--memory",
+        "${SPARK_WORKER_MEMORY}"
+      ]
+    ports:
+      - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
+    volumes:
+      - ../services/spark/jobs:/opt/spark/jobs
+    networks:
+      - bigdata_net
 
 volumes:
   postgres_data:
