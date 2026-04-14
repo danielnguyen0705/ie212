@@ -1,394 +1,344 @@
-# IE212 - Stock Price Prediction Project
+# IE212 - Stock Price Prediction with Local ML Pipeline and Big Data Roadmap
 
-Project này là quá trình hiện thực hóa mô hình dự đoán giá cổ phiếu từ notebook nghiên cứu sang một project local có cấu trúc rõ ràng, sẵn sàng để tiếp tục tích hợp vào hệ thống Big Data ở giai đoạn sau.
+## 1. Giới thiệu
 
-Hiện tại project đã đi qua 2 mốc chính:
+Đây là project môn `IE212 - Công nghệ dữ liệu lớn`, xuất phát từ bài toán dự đoán giá cổ phiếu dựa trên mô hình lai giữa `LSTM` và `GNN`, đồng thời có thêm phần cải tiến ở local ML phase.
 
-- Setup môi trường local để chạy notebook `.ipynb` bằng `VS Code + .venv`
-- Tách các thành phần cốt lõi từ notebook sang code Python có cấu trúc trong `src/` và `scripts/`
+Project hiện được triển khai theo 2 giai đoạn chính:
 
-## 1. Trạng thái hiện tại của project
+- `Giai đoạn 1 - Local ML Project`
+  - Chạy notebook gốc
+  - Tách code từ notebook thành project Python có cấu trúc
+  - Chạy experiment ngoài notebook
+  - Lưu checkpoint và model artifact
+  - Kiểm tra load lại checkpoint
+- `Giai đoạn 2 - Big Data System`
+  - Dựng hạ tầng bằng `Docker Compose`
+  - Bắt đầu từ storage layer với `PostgreSQL` và `MinIO`
+  - Các bước tiếp theo sẽ là `Kafka`, `Spark`, `Airflow`, `FastAPI` và tích hợp model vào pipeline Big Data
 
-### 1.1. Cài đặt môi trường local thành công
+## 2. Trạng thái hiện tại
 
-Project đã setup và chạy được môi trường local với:
+### Đã hoàn thành
 
-- Virtual environment `.venv`
-- Cài thư viện bằng `requirements.txt`
-- Đăng ký Jupyter kernel cho VS Code
-- Mở và chạy notebook `.ipynb` trực tiếp trong VS Code
+#### Local ML phase
 
-### 1.2. Chạy notebook gốc thành công
+- Tạo môi trường `.venv`
+- Cài dependencies qua `requirements.txt`
+- Chạy notebook thành công trong VS Code
+- Tách code khỏi notebook thành các module trong `src/`
+- Tạo các script trong `scripts/`
+- Chạy experiment ngoài notebook
+- Lưu checkpoint model
+- Load lại checkpoint thành công
 
-Notebook gốc hiện nằm tại:
+#### Big Data phase
 
-- `notebooks/stock-predictionv9.ipynb`
-
-Notebook này đã được dùng như nguồn logic gốc để:
-
-- Đối chiếu kết quả
-- Kiểm tra lại pipeline ban đầu
-- Làm mốc tham chiếu khi tách code sang project Python local
-
-### 1.3. Đã tách notebook thành project Python local
-
-Các phần cốt lõi đã được tách ra khỏi notebook và đưa vào thư mục `src/`:
-
-- `src/config.py`: chứa cấu hình chính của project
-- `src/data_loader.py`: tải dữ liệu từ `yfinance`, làm sạch dữ liệu và align ngày giao dịch chung
-- `src/features.py`: xây dựng tensor đặc trưng như `features_3d`, `close_2d`, `return_2d`
-- `src/dataset.py`: định nghĩa `StockGraphDataset`
-- `src/models.py`: chứa `SimpleGCNLayer`, `LSTMOnlyModel`, `HybridLSTMGNNGraphGate`
-- `src/graph_builder.py`: xây graph từ Pearson correlation, association-style relation và graph kết hợp đã normalize
-- `src/expanding.py`: xử lý leakage-safe scaling, sample building và prepare expanding step data
-- `src/train_eval.py`: train loop, eval loop, predict helpers và compute metrics
-- `src/artifacts.py`: các hàm hỗ trợ lưu và load checkpoint, JSON metadata
-
-### 1.4. Đã tạo các script chạy ngoài notebook
-
-Project hiện có thể chạy nhiều bước bằng script thay vì phụ thuộc hoàn toàn vào notebook:
-
-- `scripts/run_train.py`: test load data và feature tensor
-- `scripts/test_model_forward.py`: test forward pass của model
-- `scripts/test_expanding_data.py`: test scaling và sample building
-- `scripts/test_graph_builder.py`: test graph builder
-- `scripts/test_prepare_step.py`: test prepare expanding step
-- `scripts/run_experiment.py`: chạy experiment ngoài notebook
-- `scripts/test_load_checkpoint.py`: test load lại checkpoint model
-
-## 2. Kết quả đã đạt được
-
-### 2.1. Dữ liệu đã được tải và lưu local
-
-Dữ liệu raw hiện được lưu trong:
-
-```text
-data/raw/
-```
-
-Mỗi mã cổ phiếu được lưu thành một file `.csv` riêng.
-
-### 2.2. Experiment đã chạy được ngoài notebook
-
-Experiment expanding window được chạy bằng lệnh:
-
-```bash
-python -m scripts.run_experiment
-```
-
-Luồng chạy hiện tại hỗ trợ:
-
-- `Linear Regression` baseline
-- `LSTM` expanding baseline
-- `Hybrid LSTM-GNN Graph-Gated`
-- Tạo bảng kết quả tổng hợp
-- Tạo bảng so sánh theo từng ngày test
-- Tạo bảng MSE theo từng mã cổ phiếu
-
-### 2.3. Output thực nghiệm đã được lưu ra file
-
-Các file output hiện có trong thư mục `outputs/`:
-
-- `outputs/exp_results_full.csv`
-- `outputs/compare_step_full.csv`
-- `outputs/stock_mse_full.csv`
-- `outputs/graph_step_full.csv`
-- `outputs/gate_step_full.csv`
-- `outputs/metrics_full.json`
-
-### 2.4. Hỗ trợ lưu và load model artifact
-
-Project đã có cơ chế lưu artifact thông qua `src/artifacts.py`.
-
-Khi chạy:
-
-```bash
-python -m scripts.run_experiment
-```
-
-script sẽ lưu các artifact sau vào thư mục `models/`:
-
-- `models/lstm_expanding_best_full.pt`
-- `models/hybrid_expanding_best_full.pt`
-- `models/run_metadata_full.json`
-
-Sau đó có thể kiểm tra khả năng load lại checkpoint bằng:
-
-```bash
-python -m scripts.test_load_checkpoint
-```
-
-Điều này cho phép project quản lý được:
-
-- Model checkpoint
-- Train config
-- Metrics đi kèm
-- Metadata của lần chạy
+- Tạo thư mục `compose/`
+- Dựng thành công `PostgreSQL`
+- Dựng thành công `MinIO`
+- PostgreSQL đã được khởi tạo:
+  - schema `stock`
+  - bảng `stock.predictions`
+  - bảng `stock.model_registry`
+- MinIO đã được khởi tạo bucket:
+  - `raw`
+  - `processed`
+  - `models`
+  - `artifacts`
 
 ## 3. Cấu trúc thư mục hiện tại
 
 ```text
 IE212/
 ├── .venv/
-├── .gitignore
-├── README.md
-├── requirements.txt
+├── compose/
+│   ├── compose.yaml
+│   ├── .env
+│   └── postgres/
+│       └── init/
+│           └── 001_init.sql
+├── data/
+│   ├── processed/
+│   └── raw/
+├── models/
 ├── notebooks/
 │   └── stock-predictionv9.ipynb
-├── src/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── data_loader.py
-│   ├── features.py
-│   ├── dataset.py
-│   ├── models.py
-│   ├── graph_builder.py
-│   ├── expanding.py
-│   ├── train_eval.py
-│   └── artifacts.py
+├── outputs/
 ├── scripts/
 │   ├── __init__.py
-│   ├── run_train.py
 │   ├── run_experiment.py
-│   ├── test_model_forward.py
+│   ├── run_train.py
 │   ├── test_expanding_data.py
 │   ├── test_graph_builder.py
-│   ├── test_prepare_step.py
-│   └── test_load_checkpoint.py
-├── data/
-│   ├── raw/
-│   └── processed/
-├── models/
-└── outputs/
+│   ├── test_load_checkpoint.py
+│   ├── test_model_forward.py
+│   └── test_prepare_step.py
+├── src/
+│   ├── __init__.py
+│   ├── artifacts.py
+│   ├── config.py
+│   ├── data_loader.py
+│   ├── dataset.py
+│   ├── expanding.py
+│   ├── features.py
+│   ├── graph_builder.py
+│   ├── models.py
+│   └── train_eval.py
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 
-Trong workspace hiện tại, `models/` đã có các file checkpoint và metadata được sinh ra từ lần chạy experiment gần nhất.
+## 4. Ý nghĩa các thư mục chính
 
-## 4. Hướng dẫn cài môi trường local để chạy notebook trên VS Code
+- `src/`: mã nguồn chính sau khi tách khỏi notebook
+- `scripts/`: các script test, train và evaluate
+- `notebooks/`: notebook nghiên cứu gốc
+- `data/`: dữ liệu raw và processed
+- `outputs/`: kết quả thực nghiệm
+- `models/`: checkpoint model và metadata
+- `compose/`: cấu hình Docker Compose cho Big Data services
+- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu cho PostgreSQL
 
-README này vẫn giữ phần setup notebook vì đây là bước nền tảng để tái lập môi trường local và đối chiếu kết quả với notebook gốc.
+## 5. Các lệnh local ML đã dùng
 
-### 4.1. Yêu cầu trước khi bắt đầu
-
-Máy cần có sẵn:
-
-- `Python 3.10` hoặc `Python 3.11`
-- `VS Code`
-- Extension `Python` trong VS Code
-- Extension `Jupyter` trong VS Code
-- `Git`
-
-Khuyến nghị:
-
-- Dùng `Python 3.10` hoặc `3.11` để tránh lỗi tương thích thư viện
-- Không nên cài trực tiếp thư viện vào Python hệ thống
-- Nên dùng `.venv` cho project
-
-### 4.2. Clone project
-
-```bash
-git clone <link-repository>
-cd ie212
-```
-
-### 4.3. Tạo virtual environment
-
-```bash
-python -m venv .venv
-```
-
-Sau khi hoàn tất, thư mục `.venv/` sẽ xuất hiện trong project.
-
-### 4.4. Kích hoạt virtual environment
-
-Nếu dùng `PowerShell` trên Windows:
+### Kích hoạt môi trường ảo trên Windows PowerShell
 
 ```powershell
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 ```
 
-Nếu bị chặn quyền chạy script, chạy trước:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Sau đó chạy lại:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-Khi thành công, terminal sẽ có tiền tố tương tự:
-
-```powershell
-(.venv) PS D:\ie212>
-```
-
-### 4.5. Cài thư viện từ `requirements.txt`
-
-Nâng cấp `pip` trước:
+### Chạy các script kiểm tra và thực nghiệm
 
 ```bash
-python -m pip install --upgrade pip
-```
-
-Sau đó cài thư viện:
-
-```bash
-pip install -r requirements.txt
-```
-
-Nội dung `requirements.txt` hiện tại:
-
-```text
-numpy>=1.26
-pandas>=2.2
-matplotlib>=3.8
-scikit-learn>=1.4
-yfinance>=0.2.54
-mlxtend>=0.23
-torch>=2.2
-jupyter>=1.0
-ipykernel>=6.29
-```
-
-### 4.6. Đăng ký kernel cho Jupyter / VS Code
-
-Sau khi đã activate `.venv`, chạy:
-
-```bash
-python -m ipykernel install --user --name stockv9 --display-name "Python (.venv) stockv9"
-```
-
-Nếu xuất hiện dòng tương tự sau thì là thành công:
-
-```text
-Installed kernelspec stockv9 in ...
-```
-
-### 4.7. Mở notebook trong VS Code
-
-Thực hiện lần lượt:
-
-1. Mở file `notebooks/stock-predictionv9.ipynb`
-2. Ở góc trên bên phải, chọn `Kernel`
-3. Chọn `Python (.venv) stockv9`
-
-Nếu chưa thấy:
-
-1. Chọn `Select Another Kernel`
-2. Tìm `stockv9`
-
-### 4.8. Kiểm tra notebook đã dùng đúng môi trường chưa
-
-Chạy cell sau:
-
-```python
-import sys
-print(sys.executable)
-```
-
-Nếu đúng môi trường, kết quả sẽ gần giống:
-
-```text
-D:\ie212\.venv\Scripts\python.exe
-```
-
-Có thể test import nhanh bằng cell sau:
-
-```python
-import numpy as np
-import pandas as pd
-import matplotlib
-import sklearn
-import torch
-import yfinance as yf
-
-print("All imports OK")
-print("Torch version:", torch.__version__)
-```
-
-Nếu không có lỗi thì môi trường đã sẵn sàng.
-
-### 4.9. Nếu kernel không hiện trong VS Code
-
-Thử lần lượt các cách sau:
-
-1. Reload VS Code bằng `Developer: Reload Window`
-2. Chọn lại interpreter bằng `Python: Select Interpreter`
-3. Trỏ lại đúng interpreter của `.venv`:
-
-```text
-D:\ie212\.venv\Scripts\python.exe
-```
-
-4. Đóng rồi mở lại notebook, sau đó chọn lại kernel `stockv9`
-
-## 5. Cách chạy project hiện tại
-
-### 5.1. Kích hoạt môi trường
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-### 5.2. Chạy experiment chính
-
-```bash
+python -m scripts.run_train
+python -m scripts.test_model_forward
+python -m scripts.test_expanding_data
+python -m scripts.test_graph_builder
+python -m scripts.test_prepare_step
 python -m scripts.run_experiment
-```
-
-### 5.3. Test load checkpoint
-
-```bash
 python -m scripts.test_load_checkpoint
 ```
 
-## 6. Ý nghĩa của mốc hiện tại
+### Ý nghĩa nhanh của từng script
 
-Project hiện đã vượt qua giai đoạn notebook nghiên cứu ban đầu và tiến tới mức:
+- `run_train`: load dữ liệu và chạy pipeline train cơ bản
+- `test_model_forward`: kiểm tra forward pass của model
+- `test_expanding_data`: kiểm tra expanding window data preparation
+- `test_graph_builder`: kiểm tra graph construction
+- `test_prepare_step`: kiểm tra dữ liệu train, val, test cho từng expanding step
+- `run_experiment`: chạy thực nghiệm ngoài notebook
+- `test_load_checkpoint`: kiểm tra load lại checkpoint đã lưu
 
-- Code có cấu trúc rõ ràng
-- Experiment chạy được bằng script
-- Kết quả được lưu ra file
-- Model có thể lưu checkpoint và load lại
+## 6. Big Data phase - Storage layer đầu tiên
 
-Đây là mốc quan trọng trước khi chuyển sang giai đoạn tích hợp vào kiến trúc Big Data.
+Hiện tại project đã dựng thành công 2 service đầu tiên bằng Docker Compose:
 
-## 7. Bước tiếp theo
+- `PostgreSQL`: dùng để lưu metadata, prediction results và model registry
+- `MinIO`: dùng làm object storage kiểu S3 cho raw data, processed data, models và artifacts
 
-Sau khi hoàn thành local ML project và artifact management, các bước tiếp theo dự kiến là:
+Ngoài 2 service chính, `compose.yaml` còn có `minio-bootstrap` để tự động tạo bucket cần thiết khi khởi động hệ thống.
 
-- Tạo thư mục `compose/`
-- Dựng `Docker Compose`
-- Dựng `PostgreSQL`
-- Dựng `MinIO`
-- Sau đó tiếp tục với `Kafka`, `Spark`, `Airflow`, `FastAPI`
+## 7. Cấu hình Docker Compose hiện tại
 
-## 8. Ghi chú
+Các file liên quan:
 
-Notebook gốc vẫn được giữ trong `notebooks/` để:
+- `compose/compose.yaml`
+- `compose/.env`
+- `compose/postgres/init/001_init.sql`
 
-- Đối chiếu logic
-- Kiểm tra lại kết quả
-- Dùng làm nguồn tham chiếu khi cần
+### Service hiện có
 
-Tuy nhiên, hướng phát triển chính từ thời điểm này là ưu tiên:
+- `ie212-postgres`
+- `ie212-minio`
 
-- Chạy bằng script trong `scripts/`
-- Tái sử dụng code trong `src/`
+### Bucket MinIO đã có
 
-## 9. Tóm tắt ngắn
+- `raw`
+- `processed`
+- `models`
+- `artifacts`
 
-Project hiện đã làm được:
+## 8. Cách chạy PostgreSQL và MinIO
 
-- Setup môi trường local thành công
-- Chạy notebook trong VS Code thành công
-- Tách logic chính khỏi notebook
-- Chạy experiment bằng script
-- Lưu output thực nghiệm
-- Hỗ trợ lưu checkpoint model
-- Hỗ trợ load checkpoint lại
+### Bước 1: đi vào thư mục `compose`
 
-Mốc tiếp theo là triển khai hạ tầng Big Data để đưa model vào hệ thống hoàn chỉnh.
+```bash
+cd compose
+```
+
+### Bước 2: khởi động container
+
+```bash
+docker compose up -d
+```
+
+### Bước 3: kiểm tra trạng thái container
+
+```bash
+docker compose ps
+```
+
+## 9. Các lệnh kiểm tra PostgreSQL
+
+### Kiểm tra schema
+
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
+```
+
+### Kiểm tra bảng trong schema `stock`
+
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
+```
+
+Kết quả mong đợi:
+
+- schema `stock`
+- bảng `stock.predictions`
+- bảng `stock.model_registry`
+
+## 10. Các lệnh kiểm tra MinIO
+
+### Health check
+
+```bash
+curl.exe -i http://localhost:9000/minio/health/live
+```
+
+### Mở giao diện web
+
+Truy cập trình duyệt tại:
+
+```text
+http://localhost:9001
+```
+
+Thông tin đăng nhập hiện tại được cấu hình trong file:
+
+```text
+compose/.env
+```
+
+Giá trị hiện tại trong repo:
+
+```text
+user: minioadmin
+password: change_me_minio
+```
+
+Nên đổi password mặc định trước khi dùng lâu dài.
+
+## 11. Các lệnh quản lý Docker Compose
+
+### Xem service đang chạy
+
+```bash
+docker compose ps
+```
+
+### Xem cả container đã thoát
+
+```bash
+docker compose ps -a
+```
+
+### Xem log PostgreSQL
+
+```bash
+docker compose logs postgres
+```
+
+### Xem log MinIO
+
+```bash
+docker compose logs minio
+```
+
+### Tắt hệ thống
+
+```bash
+docker compose down
+```
+
+### Tắt và xóa luôn volume dữ liệu
+
+```bash
+docker compose down -v
+```
+
+`Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL và MinIO local.
+
+## 12. Những gì đã xác nhận thành công
+
+### Local ML
+
+- Notebook chạy được
+- Code sau khi tách vẫn chạy ổn
+- Experiment chạy ngoài notebook thành công
+- Checkpoint model đã lưu thành công
+- Checkpoint đã load lại thành công
+
+### Big Data storage
+
+- PostgreSQL container chạy healthy
+- Schema `stock` đã được tạo
+- Bảng `predictions` và `model_registry` đã được tạo
+- MinIO web UI truy cập được
+- Bucket `raw`, `processed`, `models`, `artifacts` đã được tạo
+
+## 13. Bước tiếp theo
+
+Sau storage layer, roadmap tiếp theo của project là:
+
+- Dựng `Kafka` bằng Docker Compose
+- Tạo producer và consumer test
+- Dựng `Spark` để xử lý dữ liệu
+- Dựng `Airflow` để orchestration pipeline
+- Dựng `FastAPI` để serving model
+- Tích hợp model local hiện tại vào hệ thống Big Data
+
+## 14. Ghi chú
+
+- Hiện tại project đang chạy tốt ở phase local ML
+- Big Data phase mới hoàn thành bước đầu là storage layer
+- Đây là điểm checkpoint phù hợp trước khi sang Kafka
+- Notebook gốc vẫn được giữ trong `notebooks/` để đối chiếu logic và kết quả khi cần
+- Hướng phát triển chính từ thời điểm này là ưu tiên chạy bằng script trong `scripts/` và tái sử dụng code trong `src/`
+
+## 15. Quick Start ngắn gọn
+
+### Local ML
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m scripts.run_experiment
+python -m scripts.test_load_checkpoint
+```
+
+### Big Data storage
+
+```bash
+cd compose
+docker compose up -d
+docker compose ps
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
+curl.exe -i http://localhost:9000/minio/health/live
+```
+
+### MinIO UI
+
+```text
+http://localhost:9001
+```
+
+## 16. Tác giả / mục đích
+
+Project phục vụ các mục tiêu:
+
+- Nghiên cứu và tái hiện bài toán dự đoán giá cổ phiếu
+- Cải tiến mô hình local ML
+- Triển khai pipeline Big Data end-to-end cho đồ án môn IE212
