@@ -1,99 +1,239 @@
 # IE212 - Stock Price Prediction
 
-Project này là notebook dự báo giá cổ phiếu cho môn IE212, xây dựng pipeline từ tải dữ liệu đến huấn luyện và so sánh mô hình. Toàn bộ quy trình được thực hiện trong `Stock_prediction_v2_patched.ipynb`.
+Project này phục vụ bài toán dự báo giá cổ phiếu cho môn `IE212`. Toàn bộ quy trình chính hiện được triển khai trong notebook `Stock_prediction_v2_patched.ipynb`.
 
-## Tổng quan
+README này tập trung vào việc hướng dẫn cài môi trường local để chạy file notebook `.ipynb` bằng `VS Code + virtual environment (.venv)`.
 
-Notebook triển khai bài toán dự báo giá đóng cửa cổ phiếu từ dữ liệu Yahoo Finance và so sánh 5 mô hình:
+## Tổng quan project
 
-- Linear Regression
-- DNN
-- CNN
-- LSTM
-- Hybrid LSTM-GCN
+Notebook hiện bao gồm các bước chính:
 
-Pipeline chính gồm:
+- Tải dữ liệu lịch sử cổ phiếu từ `Yahoo Finance`
+- Làm sạch và đồng bộ dữ liệu theo `common trading dates`
+- Tạo đặc trưng đầu vào và chuẩn hóa dữ liệu
+- Huấn luyện, đánh giá và so sánh nhiều mô hình dự báo
+- Xuất kết quả và biểu đồ phục vụ thực nghiệm
 
-- Tải dữ liệu lịch sử cho 10 mã cổ phiếu bằng `yfinance`
-- Làm sạch và đồng bộ `common trading dates`
-- Tạo đặc trưng như `Close`, `MA20` và scale bằng `MinMaxScaler`
-- Xây dựng đồ thị quan hệ giữa các cổ phiếu bằng Pearson correlation + Apriori
-- Huấn luyện và đánh giá bằng expanding window backtest
-- Tổng hợp chỉ số `MSE`, `RMSE`, `MAE`, vẽ biểu đồ và lưu kết quả ra file CSV
+File chính trong project:
 
-Mặc định notebook đang sử dụng tập ticker:
+- `Stock_prediction_v2_patched.ipynb`: notebook chính
+- `requirements.txt`: danh sách thư viện cần cài
+- `README.md`: hướng dẫn cài đặt và chạy project
 
-`AAPL`, `MSFT`, `CMCSA`, `COST`, `QCOM`, `ADBE`, `SBUX`, `INTU`, `AMD`, `INTC`
+## 1. Yêu cầu trước khi bắt đầu
 
-Khoảng thời gian dữ liệu mặc định:
+Máy cần có sẵn:
 
-- Bắt đầu: `2005-01-01`
-- Kết thúc: `2023-12-31`
+- `Python 3.10` hoặc `Python 3.11`
+- `VS Code`
+- Extension `Python` trong VS Code
+- Extension `Jupyter` trong VS Code
+- `Git`
 
-## Cấu trúc project
+Khuyến nghị:
 
-- `Stock_prediction_v2_patched.ipynb`: notebook chính chứa toàn bộ pipeline, model và phần thực nghiệm
-- `requirements.txt`: danh sách thư viện cần cài đặt
-- `README.md`: hướng dẫn tổng quan và cách chạy project
+- Nên dùng `Python 3.10` hoặc `3.11` để hạn chế lỗi tương thích thư viện
+- Không nên cài trực tiếp thư viện vào Python hệ thống
+- Nên dùng môi trường ảo `.venv` cho project
 
-## Cách cài đặt thư viện
+## 2. Clone project
 
-Yêu cầu:
+```bash
+git clone <link-repository>
+cd ie212
+```
 
-- Python 3.10 trở lên
-- Khuyến nghị dùng môi trường ảo (`venv`)
+## 3. Tạo virtual environment
 
-Tạo môi trường ảo và cài đặt thư viện:
-
-### Windows
+Trong terminal tại thư mục project, chạy:
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+```
+
+Sau khi hoàn tất, thư mục `.venv/` sẽ được tạo trong project.
+
+## 4. Kích hoạt virtual environment
+
+Nếu dùng `PowerShell` trên Windows:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Nếu bị chặn quyền chạy script, chạy trước:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+Sau đó kích hoạt lại:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Khi kích hoạt thành công, terminal sẽ hiển thị tiền tố tương tự:
+
+```powershell
+(.venv) PS D:\ie212>
+```
+
+## 5. Cài thư viện từ `requirements.txt`
+
+Nên nâng cấp `pip` trước:
+
+```bash
+python -m pip install --upgrade pip
+```
+
+Sau đó cài toàn bộ thư viện:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### macOS / Linux
+## 6. Đăng ký kernel cho Jupyter / VS Code
+
+Sau khi đã activate `.venv`, chạy:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python -m ipykernel install --user --name stockv9 --display-name "Python (.venv) stockv9"
+```
+
+Nếu xuất hiện thông báo dạng sau thì là thành công:
+
+```text
+Installed kernelspec stockv9 in ...
+```
+
+## 7. Mở notebook trong VS Code
+
+Thực hiện lần lượt:
+
+1. Mở file notebook `.ipynb`
+2. Ở góc trên bên phải, chọn `Kernel`
+3. Chọn kernel `Python (.venv) stockv9`
+
+Nếu chưa thấy kernel này:
+
+1. Chọn `Select Another Kernel`
+2. Tìm `stockv9`
+
+## 8. Kiểm tra notebook đã dùng đúng môi trường chưa
+
+Chạy cell sau trong notebook:
+
+```python
+import sys
+print(sys.executable)
+```
+
+Nếu đúng môi trường, kết quả sẽ gần giống:
+
+```text
+D:\ie212\.venv\Scripts\python.exe
+```
+
+Tiếp theo có thể kiểm tra import thư viện:
+
+```python
+import numpy as np
+import pandas as pd
+import matplotlib
+import sklearn
+import torch
+import yfinance as yf
+
+print("All imports OK")
+print("Torch version:", torch.__version__)
+```
+
+Nếu không báo lỗi thì môi trường đã sẵn sàng.
+
+## 9. `requirements.txt`
+
+Project hiện cài đặt thư viện thông qua file `requirements.txt`.
+
+Ví dụ nội dung có thể bao gồm:
+
+```text
+numpy>=1.26
+pandas>=2.2
+matplotlib>=3.8
+scikit-learn>=1.4
+yfinance>=0.2.54
+mlxtend>=0.23
+torch>=2.2
+jupyter>=1.0
+ipykernel>=6.29
+```
+
+Cài bằng lệnh:
+
+```bash
 pip install -r requirements.txt
 ```
 
-Nếu bạn chạy bằng Jupyter hoặc VS Code Notebook, hãy chọn kernel từ môi trường `.venv` sau khi cài đặt xong.
+## 10. `.gitignore`
 
-## Cách chạy project
+Project nên có `.gitignore` để tránh đẩy file môi trường và file tạm lên Git.
 
-Project này được chạy chủ yếu qua notebook.
+Các mục nên ignore:
 
-### Cách 1: Chạy bằng Jupyter Notebook
-
-```bash
-jupyter notebook
+```gitignore
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.vscode/
 ```
 
-Sau đó mở file `Stock_prediction_v2_patched.ipynb` và chạy lần lượt từng cell từ trên xuống dưới.
+Có thể mở rộng thêm để bỏ qua dữ liệu tạm, model artifacts, log, hoặc các file sinh ra trong quá trình thử nghiệm.
 
-### Cách 2: Chạy bằng VS Code
+## 11. Nếu kernel không hiện trong VS Code
 
-- Mở thư mục project trong VS Code
-- Mở file `Stock_prediction_v2_patched.ipynb`
-- Chọn đúng Python interpreter / kernel của `.venv`
-- Bấm `Run All` hoặc chạy từng cell theo thứ tự
+Thử lần lượt các cách sau:
 
-## Đầu ra sau khi chạy
+### Cách 1: Reload VS Code
 
-Sau khi chạy xong notebook, project sẽ:
+1. Nhấn `Ctrl + Shift + P`
+2. Gõ `Developer: Reload Window`
 
-- Hiển thị bảng so sánh kết quả giữa các mô hình và các giá trị lookback `11` và `21`
-- Vẽ biểu đồ dự báo so với giá trị thực tế
-- Lưu 2 file kết quả:
-  - `summary_all_models.csv`
-  - `all_results_all_models.csv`
+### Cách 2: Chọn lại interpreter
 
-## Ghi chú
+1. Nhấn `Ctrl + Shift + P`
+2. Gõ `Python: Select Interpreter`
+3. Chọn:
 
-- Notebook có sử dụng `torch`, nếu máy có GPU và cấu hình phù hợp thì sẽ tự động dùng `cuda`
-- Thời gian chạy có thể khá lâu vì notebook huấn luyện nhiều mô hình và backtest trên nhiều bước thời gian
-- Cần kết nối Internet để tải dữ liệu từ Yahoo Finance
+```text
+D:\ie212\.venv\Scripts\python.exe
+```
+
+### Cách 3: Đóng rồi mở lại notebook
+
+Sau đó chọn lại kernel `stockv9`.
+
+## 12. Các bước setup ngắn gọn
+
+Nếu đã quen, có thể setup nhanh bằng các lệnh sau:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python -m ipykernel install --user --name stockv9 --display-name "Python (.venv) stockv9"
+```
+
+Sau đó mở notebook trong VS Code và chọn kernel `Python (.venv) stockv9`.
+
+## 13. Trạng thái hiện tại
+
+README này hiện mới mô tả các nội dung:
+
+- Tạo virtual environment
+- Cài thư viện bằng `requirements.txt`
+- Đăng ký kernel Jupyter
+- Chạy notebook trong VS Code
+
+Các phần như `Docker`, `Kafka`, `Spark`, `Airflow`, `PostgreSQL`, `MinIO`, `FastAPI` sẽ được bổ sung sau.

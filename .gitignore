@@ -1,0 +1,55 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Jupyter
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
+
+# Build / package
+build/
+dist/
+*.egg-info/
+
+# Model / data artifacts
+models/
+checkpoints/
+artifacts/
+data/raw/
+data/processed/
+
+# Notebook outputs / large temp files
+*.csv
+*.parquet
+*.pkl
+*.joblib
+*.pt
+*.pth
+
+# Optional: ignore notebook output-heavy files
+# Uncomment if you do not want to track notebooks at all
+# *.ipynb
