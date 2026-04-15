@@ -149,8 +149,11 @@ services:
   
   minio-client:
     image: minio/mc
+    container_name: ie212-minio-client
+    restart: unless-stopped
     profiles: ["manual"]
     entrypoint: /bin/sh
+    command: -c "tail -f /dev/null"
     networks:
       - bigdata_net
     volumes:
@@ -203,6 +206,9 @@ services:
       - ../airflow/dags:/opt/airflow/dags
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/plugins:/opt/airflow/plugins
+      - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
+      - ../services/spark/out:/opt/airflow/shared/spark_out
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - bigdata_net
 
@@ -226,6 +232,10 @@ services:
       - ../airflow/dags:/opt/airflow/dags
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/plugins:/opt/airflow/plugins
+      - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
+      - ../services/spark/out:/opt/airflow/shared/spark_out
+      - /var/run/docker.sock:/var/run/docker.sock
+
     networks:
       - bigdata_net
 
@@ -251,6 +261,9 @@ services:
       - ../airflow/dags:/opt/airflow/dags
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/plugins:/opt/airflow/plugins
+      - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
+      - ../services/spark/out:/opt/airflow/shared/spark_out
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - bigdata_net
 
@@ -276,6 +289,9 @@ services:
       - ../airflow/dags:/opt/airflow/dags
       - ../airflow/logs:/opt/airflow/logs
       - ../airflow/plugins:/opt/airflow/plugins
+      - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
+      - ../services/spark/out:/opt/airflow/shared/spark_out
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - bigdata_net
 
