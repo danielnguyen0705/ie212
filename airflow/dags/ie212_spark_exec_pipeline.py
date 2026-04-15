@@ -1,31 +1,15 @@
 import os
 from datetime import datetime
 
-import psycopg2
-
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
-
-PG_HOST = "postgres"
-PG_PORT = 5432
-PG_DB = "stock_project"
-PG_USER = "stock_user"
-PG_PASSWORD = "change_me_postgres"
-
-PARQUET_DIR = "/opt/airflow/shared/spark_out/kafka_ticks_parquet"
-COMPOSE_NETWORK = "ie212-bigdata_bigdata_net"
+from ie212_settings import env, get_pg_conn, airflow_runtime_env
 
 
-def get_pg_conn():
-    return psycopg2.connect(
-        host=PG_HOST,
-        port=PG_PORT,
-        dbname=PG_DB,
-        user=PG_USER,
-        password=PG_PASSWORD,
-    )
+PARQUET_DIR = env("IE212_PARQUET_LOCAL_DIR", "/opt/airflow/shared/spark_out/kafka_ticks_parquet")
+RUNTIME_ENV = airflow_runtime_env()
 
 
 def validate_batch_postgres():
@@ -74,10 +58,11 @@ def validate_local_parquet():
     print(f"Local parquet ok. parquet_files={len(parquet_files)}, has_success={has_success}")
 
 
-def write_audit():
+def write_audit(**context):
     files = os.listdir(PARQUET_DIR)
     parquet_files = [f for f in files if f.endswith(".parquet")]
     has_success = "_SUCCESS" in files
+    run_id = context["dag_run"].run_id
 
     conn = get_pg_conn()
     try:
@@ -86,11 +71,7 @@ def write_audit():
                 cur.execute("SELECT COUNT(*) FROM stock.kafka_ticks;")
                 kafka_ticks_count = cur.fetchone()[0]
 
-                cur.execute(
-                    """
-                    SELECT COUNT(*) FROM stock.kafka_ticks_batch;
-                    """
-                )
+                cur.execute("SELECT COUNT(*) FROM stock.kafka_ticks_batch;")
                 batch_count = cur.fetchone()[0]
 
                 cur.execute(
@@ -111,7 +92,7 @@ def write_audit():
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
-                        "ie212_spark_exec_pipeline_manual",
+                        run_id,
                         True,
                         True,
                         True,
@@ -138,13 +119,15 @@ with DAG(
 ) as dag:
     spark_batch_to_postgres = BashOperator(
         task_id="spark_batch_to_postgres",
-        bash_command=(
-            "docker exec ie212-spark-master "
-            "/opt/spark/bin/spark-submit "
-            "--master spark://spark-master:7077 "
-            "--packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2,org.postgresql:postgresql:42.7.10 "
-            "/opt/spark/jobs/write_kafka_batch_to_postgres.py"
-        ),
+        env=RUNTIME_ENV,
+        bash_command=r"""
+set -e
+docker exec "$IE212_SPARK_MASTER_CONTAINER" \
+  /opt/spark/bin/spark-submit \
+  --master "$IE212_SPARK_MASTER_URL" \
+  --packages "$IE212_SPARK_KAFKA_PACKAGE,$IE212_POSTGRES_JDBC_PACKAGE" \
+  /opt/spark/jobs/write_kafka_batch_to_postgres.py
+""",
     )
 
     validate_batch_db = PythonOperator(
@@ -154,13 +137,15 @@ with DAG(
 
     spark_batch_to_parquet = BashOperator(
         task_id="spark_batch_to_parquet",
-        bash_command=(
-            "docker exec ie212-spark-master "
-            "/opt/spark/bin/spark-submit "
-            "--master spark://spark-master:7077 "
-            "--packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 "
-            "/opt/spark/jobs/write_kafka_batch_to_parquet.py"
-        ),
+        env=RUNTIME_ENV,
+        bash_command=r"""
+set -e
+docker exec "$IE212_SPARK_MASTER_CONTAINER" \
+  /opt/spark/bin/spark-submit \
+  --master "$IE212_SPARK_MASTER_URL" \
+  --packages "$IE212_SPARK_KAFKA_PACKAGE" \
+  /opt/spark/jobs/write_kafka_batch_to_parquet.py
+""",
     )
 
     validate_parquet = PythonOperator(
@@ -170,12 +155,18 @@ with DAG(
 
     upload_parquet_to_minio = BashOperator(
         task_id="upload_parquet_to_minio",
-        bash_command=(
-            "docker exec ie212-minio-client sh -lc "
-            "\"mc alias set local http://minio:9000 minioadmin change_me_minio && "
-            "mc rm --recursive --force local/processed/kafka_ticks_parquet || true && "
-            "mc cp --recursive /upload/kafka_ticks_parquet local/processed/kafka_ticks_parquet\""
-        ),
+        env=RUNTIME_ENV,
+        bash_command=r"""
+set -e
+docker exec "$IE212_MINIO_CLIENT_CONTAINER" \
+  mc alias set local "$IE212_MINIO_ENDPOINT" "$IE212_MINIO_ACCESS_KEY" "$IE212_MINIO_SECRET_KEY"
+
+docker exec "$IE212_MINIO_CLIENT_CONTAINER" \
+  mc rm --recursive --force "local/$IE212_MINIO_PROCESSED_BUCKET/$IE212_MINIO_PARQUET_PREFIX" || true
+
+docker exec "$IE212_MINIO_CLIENT_CONTAINER" \
+  mc cp --recursive "/upload/$IE212_SPARK_PARQUET_DIRNAME" "local/$IE212_MINIO_PROCESSED_BUCKET/$IE212_MINIO_PARQUET_PREFIX"
+""",
     )
 
     write_pipeline_audit = PythonOperator(
