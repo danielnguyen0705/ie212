@@ -23,8 +23,9 @@ Project hiện được triển khai theo 2 giai đoạn chính:
     - `Spark standalone`
     - `Spark batch read từ Kafka`
     - `Spark structured streaming từ Kafka`
+    - `Spark structured streaming ghi sang PostgreSQL`
   - các bước tiếp theo sẽ là:
-    - ghi dữ liệu Spark sang MinIO hoặc PostgreSQL
+    - ghi dữ liệu Spark sang MinIO
     - `Airflow`
     - `FastAPI`
     - tích hợp model vào pipeline Big Data
@@ -57,6 +58,7 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - schema `stock`
   - bảng `stock.predictions`
   - bảng `stock.model_registry`
+  - bảng `stock.kafka_ticks`
 - MinIO đã được khởi tạo bucket:
   - `raw`
   - `processed`
@@ -71,6 +73,7 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - submit job `simple_spark_check.py`
   - đọc batch từ Kafka bằng `read_kafka_batch.py`
   - đọc stream từ Kafka bằng `read_kafka_stream.py`
+  - ghi stream từ Kafka sang PostgreSQL bằng `write_kafka_stream_to_postgres.py`
 
 ## 3. Cấu trúc thư mục hiện tại
 
@@ -88,7 +91,8 @@ IE212/
 │       └── jobs/
 │           ├── simple_spark_check.py
 │           ├── read_kafka_batch.py
-│           └── read_kafka_stream.py
+│           ├── read_kafka_stream.py
+│           └── write_kafka_stream_to_postgres.py
 ├── data/
 ├── models/
 ├── notebooks/
@@ -109,8 +113,8 @@ IE212/
 - `outputs/`: kết quả thực nghiệm
 - `models/`: checkpoint model và metadata
 - `compose/`: Docker Compose cho các service Big Data
-- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu
-- `services/spark/jobs/`: các job Spark dùng để smoke test, đọc batch và đọc stream từ Kafka
+- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và các bảng PostgreSQL ban đầu
+- `services/spark/jobs/`: các job Spark dùng để smoke test, đọc batch, đọc stream và ghi dữ liệu sang PostgreSQL
 
 ## 5. Các lệnh local ML đã dùng
 
@@ -221,11 +225,21 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
 ```
 
+### Query dữ liệu Kafka đã được Spark ghi vào PostgreSQL
+
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, symbol, price, topic, partition_id, kafka_offset, event_time, ingested_at FROM stock.kafka_ticks ORDER BY id DESC LIMIT 10;"
+```
+
 ### Kết quả mong đợi
 
 - schema `stock`
 - bảng `stock.predictions`
 - bảng `stock.model_registry`
+- bảng `stock.kafka_ticks`
+- dữ liệu mới do Spark ghi từ Kafka sẽ xuất hiện trong `stock.kafka_ticks`
+
+Lưu ý: file `compose/postgres/init/001_init.sql` trong repo hiện đang khởi tạo các bảng nền ban đầu. Nếu bạn dựng môi trường mới hoàn toàn, hãy bảo đảm bảng `stock.kafka_ticks` cũng đã được tạo trước khi chạy job stream ghi PostgreSQL.
 
 ## 10. Các lệnh kiểm tra MinIO
 
@@ -414,7 +428,56 @@ Ví dụ:
 - thấy các mã mới như `NVDA`, `GOOGL`, `TSLA`
 - xác nhận luồng `Kafka -> Spark streaming` hoạt động
 
-## 15. Các lệnh quản lý Docker Compose
+## 15. Spark Structured Streaming ghi sang PostgreSQL
+
+### File job
+
+```text
+services/spark/jobs/write_kafka_stream_to_postgres.py
+```
+
+### Chạy stream job ghi PostgreSQL
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2,org.postgresql:postgresql:42.7.10 /opt/spark/jobs/write_kafka_stream_to_postgres.py
+```
+
+### Gửi thêm dữ liệu vào Kafka
+
+```bash
+docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-producer.sh --topic stock-price --bootstrap-server localhost:9092
+```
+
+Ví dụ:
+
+```json
+{"symbol":"META","price":502.15}
+{"symbol":"AMZN","price":189.40}
+{"symbol":"NFLX","price":628.75}
+```
+
+### Kiểm tra dữ liệu đã được ghi vào PostgreSQL
+
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, symbol, price, topic, partition_id, kafka_offset, event_time, ingested_at FROM stock.kafka_ticks ORDER BY id DESC LIMIT 10;"
+```
+
+### Chức năng
+
+- Spark đọc stream từ Kafka
+- parse JSON
+- dùng `foreachBatch` để ghi từng micro-batch vào PostgreSQL qua JDBC
+- lưu dữ liệu vào bảng `stock.kafka_ticks`
+
+### Kết quả mong đợi
+
+- terminal Spark hiển thị: `Batch ... wrote ... rows to PostgreSQL`
+- PostgreSQL query ra được các dòng mới như:
+  - `META`
+  - `AMZN`
+  - `NFLX`
+
+## 16. Các lệnh quản lý Docker Compose
 
 ### Xem service đang chạy
 
@@ -472,7 +535,7 @@ docker compose down -v
 
 `Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL, MinIO và các volume liên quan.
 
-## 16. Những gì đã xác nhận thành công
+## 17. Những gì đã xác nhận thành công
 
 ### Local ML
 
@@ -486,7 +549,7 @@ docker compose down -v
 
 - PostgreSQL container chạy healthy
 - schema `stock` đã được tạo
-- bảng `predictions` và `model_registry` đã được tạo
+- bảng `predictions`, `model_registry`, `kafka_ticks` đã được tạo
 - MinIO web UI truy cập được
 - bucket `raw`, `processed`, `models`, `artifacts` đã được tạo
 
@@ -504,28 +567,30 @@ docker compose down -v
 - Spark standalone smoke test thành công
 - Spark batch đọc Kafka thành công
 - Spark structured streaming đọc Kafka thành công
-- pipeline cơ bản `Kafka -> Spark` đã hoạt động
+- Spark structured streaming ghi PostgreSQL thành công
+- pipeline cơ bản `Kafka -> Spark -> PostgreSQL` đã hoạt động
 
-## 17. Bước tiếp theo
+## 18. Bước tiếp theo
 
 Roadmap tiếp theo của project là:
 
-- cho Spark ghi dữ liệu sang MinIO hoặc PostgreSQL
+- cho Spark ghi dữ liệu sang MinIO
 - xây pipeline dữ liệu trung gian để chuẩn bị cho model serving
 - dựng `Airflow` để orchestration pipeline
 - dựng `FastAPI` để serving model
 - tích hợp model local hiện tại vào hệ thống Big Data end-to-end
 
-## 18. Ghi chú
+## 19. Ghi chú
 
 - local ML phase hiện đã hoàn thành ở mức đủ tốt để chuyển sang hạ tầng
 - Big Data phase hiện đã hoàn thành:
   - storage layer đầu tiên
   - streaming layer đầu tiên
   - processing layer đầu tiên
-- đây là checkpoint rất tốt trước khi sang bước ghi dữ liệu ra sink hoặc orchestration
+  - sink đầu tiên vào PostgreSQL
+- đây là checkpoint rất tốt trước khi sang object storage sink hoặc orchestration
 
-## 19. Quick start ngắn gọn
+## 20. Quick start ngắn gọn
 
 ### Local ML
 
@@ -548,6 +613,7 @@ docker compose ps
 ```bash
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, symbol, price, topic, partition_id, kafka_offset, event_time, ingested_at FROM stock.kafka_ticks ORDER BY id DESC LIMIT 10;"
 ```
 
 ### Kiểm tra Kafka
@@ -569,6 +635,12 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_stream.py
 ```
 
+### Kiểm tra Spark stream ghi PostgreSQL
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2,org.postgresql:postgresql:42.7.10 /opt/spark/jobs/write_kafka_stream_to_postgres.py
+```
+
 ### UI
 
 ```text
@@ -577,7 +649,7 @@ Spark Master: http://localhost:8080
 Spark Worker: http://localhost:8081
 ```
 
-## 20. Mục đích project
+## 21. Mục đích project
 
 Project phục vụ:
 
