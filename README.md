@@ -4,7 +4,7 @@
 
 Đây là project môn `IE212 - Công nghệ dữ liệu lớn`, tập trung vào bài toán dự đoán giá cổ phiếu bằng mô hình lai giữa `LSTM` và `GNN`, sau đó từng bước tích hợp mô hình vào một hệ thống Big Data hoàn chỉnh.
 
-Project hiện được triển khai theo 2 giai đoạn chính.
+Project hiện được triển khai theo 2 giai đoạn chính:
 
 ### Giai đoạn 1 - Local ML Project
 
@@ -28,10 +28,14 @@ Project hiện được triển khai theo 2 giai đoạn chính.
 - `Spark structured streaming từ Kafka`
 - `Spark structured streaming ghi sang PostgreSQL`
 - `Spark batch ghi Parquet sang MinIO`
-- các bước tiếp theo:
+- orchestration layer:
 - `Airflow`
+- `DAG smoke test`
+- `DAG thật kiểm tra pipeline`
+- các bước tiếp theo sẽ là:
+- DAG orchestration mạnh hơn cho Spark jobs
 - `FastAPI`
-- tích hợp model vào pipeline Big Data
+- tích hợp model local vào pipeline Big Data end-to-end
 
 ## 2. Trạng thái hiện tại
 
@@ -57,11 +61,16 @@ Project hiện được triển khai theo 2 giai đoạn chính.
 - `Kafka`
 - `Spark Master`
 - `Spark Worker`
+- `Airflow API Server`
+- `Airflow Scheduler`
+- `Airflow Dag Processor`
+- `Airflow Triggerer`
 - PostgreSQL đã được khởi tạo:
 - schema `stock`
 - bảng `stock.predictions`
 - bảng `stock.model_registry`
 - bảng `stock.kafka_ticks`
+- bảng `stock.pipeline_audit`
 - MinIO đã được khởi tạo bucket:
 - `raw`
 - `processed`
@@ -79,12 +88,23 @@ Project hiện được triển khai theo 2 giai đoạn chính.
 - ghi stream từ Kafka sang PostgreSQL bằng `write_kafka_stream_to_postgres.py`
 - ghi batch từ Kafka ra Parquet bằng `write_kafka_batch_to_parquet.py`
 - upload Parquet lên MinIO bucket `processed`
+- Airflow đã được kiểm tra thành công:
+- login vào UI thành công
+- DAG `ie212_smoke_test` chạy thành công
+- DAG `ie212_data_pipeline` chạy thành công
+- ghi audit thành công vào bảng `stock.pipeline_audit`
 
 ## 3. Cấu trúc thư mục hiện tại
 
 ```text
 IE212/
 ├── .venv/
+├── airflow/
+│   ├── dags/
+│   │   ├── ie212_smoke_test.py
+│   │   └── ie212_data_pipeline.py
+│   ├── logs/
+│   └── plugins/
 ├── compose/
 │   ├── compose.yaml
 │   ├── .env
@@ -124,6 +144,9 @@ IE212/
 - `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu
 - `services/spark/jobs/`: các job Spark dùng để smoke test, đọc batch, đọc stream và ghi dữ liệu ra sink
 - `services/spark/out/`: dữ liệu output từ Spark trước khi upload lên MinIO
+- `airflow/dags/`: các DAG dùng để smoke test và orchestration pipeline
+- `airflow/logs/`: log của Airflow
+- `airflow/plugins/`: plugin mở rộng cho Airflow nếu cần về sau
 
 ## 5. Các lệnh local ML đã dùng
 
@@ -155,7 +178,7 @@ python -m scripts.test_load_checkpoint
 - `run_experiment`: chạy thực nghiệm ngoài notebook
 - `test_load_checkpoint`: kiểm tra load lại checkpoint đã lưu
 
-## 6. Big Data phase - Storage, Streaming, Processing
+## 6. Big Data phase - Storage, Streaming, Processing, Orchestration
 
 Hiện tại project đã dựng thành công các service Big Data đầu tiên bằng Docker Compose.
 
@@ -172,6 +195,13 @@ Hiện tại project đã dựng thành công các service Big Data đầu tiên
 
 - `Spark Master`
 - `Spark Worker`
+
+### Orchestration layer
+
+- `Airflow API Server`
+- `Airflow Scheduler`
+- `Airflow Dag Processor`
+- `Airflow Triggerer`
 
 ### Sink đã có
 
@@ -193,7 +223,15 @@ Các file liên quan:
 - `ie212-kafka`
 - `ie212-spark-master`
 - `ie212-spark-worker`
+- `ie212-airflow-apiserver`
+- `ie212-airflow-scheduler`
+- `ie212-airflow-dag-processor`
+- `ie212-airflow-triggerer`
+
+### Service hỗ trợ
+
 - `minio-client` dùng để upload file từ host mount lên MinIO
+- `airflow-init` dùng để migrate metadata database cho Airflow
 
 ### Bucket MinIO đã có
 
@@ -246,15 +284,23 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, symbol, price, topic, partition_id, kafka_offset, event_time, ingested_at FROM stock.kafka_ticks ORDER BY id DESC LIMIT 10;"
 ```
 
+### Query bảng audit pipeline
+
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, run_id, checked_at, kafka_ok, spark_ok, minio_ok, postgres_ok, kafka_ticks_count, missing_tables, notes FROM stock.pipeline_audit ORDER BY id DESC LIMIT 10;"
+```
+
 ### Kết quả mong đợi
 
 - schema `stock`
 - bảng `stock.predictions`
 - bảng `stock.model_registry`
 - bảng `stock.kafka_ticks`
-- dữ liệu mới do Spark ghi từ Kafka sẽ xuất hiện trong `stock.kafka_ticks`
+- bảng `stock.pipeline_audit`
+- dữ liệu mới do Spark ghi từ Kafka xuất hiện trong `stock.kafka_ticks`
+- dữ liệu audit từ Airflow xuất hiện trong `stock.pipeline_audit`
 
-Lưu ý: `compose/postgres/init/001_init.sql` hiện trong repo vẫn mới mô tả phần khởi tạo các bảng nền ban đầu. Nếu dựng môi trường hoàn toàn mới, cần bảo đảm bảng `stock.kafka_ticks` đã được tạo trước khi chạy job stream ghi PostgreSQL.
+Lưu ý: `compose/postgres/init/001_init.sql` hiện trong repo vẫn mới mô tả phần khởi tạo các bảng nền ban đầu. Nếu dựng môi trường hoàn toàn mới, cần bảo đảm `stock.kafka_ticks` và `stock.pipeline_audit` đã được tạo trước khi chạy các job tương ứng.
 
 ## 10. Các lệnh kiểm tra MinIO
 
@@ -398,7 +444,9 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 
 - thấy schema Kafka với các cột như `key`, `value`, `topic`, `partition`, `offset`, `timestamp`
 - thấy dữ liệu raw từ Kafka
-- parse được JSON thành các cột `symbol`, `price`
+- parse được JSON thành các cột:
+- `symbol`
+- `price`
 - `Row count = 3`
 
 ## 14. Spark Structured Streaming từ Kafka
@@ -484,8 +532,12 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id
 
 ### Kết quả mong đợi
 
-- terminal Spark hiển thị `Batch ... wrote ... rows to PostgreSQL`
-- PostgreSQL query ra được các dòng mới như `META`, `AMZN`, `NFLX`
+- terminal Spark hiển thị:
+- `Batch ... wrote ... rows to PostgreSQL`
+- PostgreSQL query ra được các dòng mới như:
+- `META`
+- `AMZN`
+- `NFLX`
 
 ## 16. Spark batch ghi Parquet và upload sang MinIO
 
@@ -540,10 +592,93 @@ docker compose run --rm minio-client -c "mc alias set local http://minio:9000 mi
 
 ### Kết quả mong đợi
 
-- thấy file `part-...snappy.parquet` và `_SUCCESS` trong `services/spark/out/kafka_ticks_parquet`
-- MinIO bucket `processed` có thư mục `kafka_ticks_parquet`
+- thấy file `part-...snappy.parquet` và `_SUCCESS` trong:
+- `services/spark/out/kafka_ticks_parquet`
+- MinIO bucket `processed` có thư mục:
+- `kafka_ticks_parquet`
 
-## 17. Các lệnh quản lý Docker Compose
+## 17. Airflow setup và kiểm tra
+
+### Tạo thư mục Airflow
+
+```powershell
+New-Item -ItemType Directory -Path airflow\dags -Force
+New-Item -ItemType Directory -Path airflow\logs -Force
+New-Item -ItemType Directory -Path airflow\plugins -Force
+```
+
+### Service Airflow hiện có
+
+- `ie212-airflow-apiserver`
+- `ie212-airflow-scheduler`
+- `ie212-airflow-dag-processor`
+- `ie212-airflow-triggerer`
+
+### Kiểm tra trạng thái
+
+```bash
+docker compose ps
+```
+
+### Xem log apiserver để lấy password simple auth
+
+```bash
+docker compose logs airflow-apiserver --tail=200
+```
+
+### Mở UI Airflow
+
+```text
+http://localhost:8088
+```
+
+### DAG smoke test
+
+File:
+
+```text
+airflow/dags/ie212_smoke_test.py
+```
+
+Chức năng:
+
+- kiểm tra Airflow stack chạy được
+- trigger thủ công trong UI
+- 2 task `hello` và `summary` chạy thành công
+
+### DAG pipeline thật
+
+File:
+
+```text
+airflow/dags/ie212_data_pipeline.py
+```
+
+Chức năng:
+
+- đảm bảo bảng `stock.pipeline_audit` tồn tại
+- kiểm tra Kafka
+- kiểm tra Spark Master
+- kiểm tra MinIO
+- kiểm tra PostgreSQL
+- ghi audit row vào `stock.pipeline_audit`
+- xác nhận pipeline cơ bản đang sống
+
+### Kiểm tra audit do Airflow ghi
+
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, run_id, checked_at, kafka_ok, spark_ok, minio_ok, postgres_ok, kafka_ticks_count, missing_tables, notes FROM stock.pipeline_audit ORDER BY id DESC LIMIT 10;"
+```
+
+### Kết quả mong đợi
+
+- login Airflow UI thành công
+- DAG `ie212_smoke_test` chạy thành công
+- DAG `ie212_data_pipeline` chạy thành công
+- bảng `stock.pipeline_audit` có row audit mới
+- các cột `kafka_ok`, `spark_ok`, `minio_ok`, `postgres_ok` đều là `true`
+
+## 18. Các lệnh quản lý Docker Compose
 
 ### Xem service đang chạy
 
@@ -587,6 +722,18 @@ docker compose logs spark-master
 docker compose logs spark-worker
 ```
 
+### Xem log Airflow API Server
+
+```bash
+docker compose logs airflow-apiserver
+```
+
+### Xem log Airflow Scheduler
+
+```bash
+docker compose logs airflow-scheduler
+```
+
 ### Tắt hệ thống
 
 ```bash
@@ -601,7 +748,7 @@ docker compose down -v
 
 `Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL, MinIO và các volume liên quan.
 
-## 18. Những gì đã xác nhận thành công
+## 19. Những gì đã xác nhận thành công
 
 ### Local ML
 
@@ -615,7 +762,7 @@ docker compose down -v
 
 - PostgreSQL container chạy healthy
 - schema `stock` đã được tạo
-- bảng `predictions`, `model_registry`, `kafka_ticks` đã được tạo
+- bảng `predictions`, `model_registry`, `kafka_ticks`, `pipeline_audit` đã được tạo
 - MinIO web UI truy cập được
 - bucket `raw`, `processed`, `models`, `artifacts` đã được tạo
 
@@ -636,19 +783,32 @@ docker compose down -v
 - Spark structured streaming ghi PostgreSQL thành công
 - Spark batch ghi Parquet thành công
 - Parquet upload lên MinIO thành công
-- pipeline cơ bản `Kafka -> Spark -> PostgreSQL` đã hoạt động
-- pipeline cơ bản `Kafka -> Spark -> MinIO` đã hoạt động
+- `Kafka -> Spark -> PostgreSQL` pipeline cơ bản đã hoạt động
+- `Kafka -> Spark -> MinIO` pipeline cơ bản đã hoạt động
 
-## 19. Bước tiếp theo
+### Big Data - Orchestration
+
+- Airflow API Server, Scheduler, Dag Processor, Triggerer chạy ổn
+- Airflow UI login thành công
+- DAG `ie212_smoke_test` chạy thành công
+- DAG `ie212_data_pipeline` chạy thành công
+- Airflow ghi audit vào `stock.pipeline_audit` thành công
+
+## 20. Bước tiếp theo
 
 Roadmap tiếp theo của project là:
 
-- dựng `Airflow` để orchestration pipeline
-- tạo DAG điều phối `Kafka -> Spark -> PostgreSQL/MinIO`
+- viết DAG orchestration mạnh hơn để gọi Spark jobs thực tế
+- tạo DAG full pipeline:
+- check service
+- chạy Spark write PostgreSQL
+- chạy Spark write Parquet
+- upload MinIO
+- ghi audit cuối pipeline
 - dựng `FastAPI` để serving model
 - tích hợp model local hiện tại vào hệ thống Big Data end-to-end
 
-## 20. Ghi chú
+## 21. Ghi chú
 
 - local ML phase hiện đã hoàn thành ở mức đủ tốt để chuyển sang hạ tầng
 - Big Data phase hiện đã hoàn thành:
@@ -657,9 +817,10 @@ Roadmap tiếp theo của project là:
 - processing layer đầu tiên
 - sink vào PostgreSQL
 - sink vào MinIO
-- đây là checkpoint rất tốt trước khi sang orchestration bằng Airflow
+- orchestration cơ bản bằng Airflow
+- đây là checkpoint rất tốt trước khi sang DAG full pipeline và model serving
 
-## 21. Quick start ngắn gọn
+## 22. Quick start ngắn gọn
 
 ### Local ML
 
@@ -683,6 +844,7 @@ docker compose ps
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dn"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "\dt stock.*"
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, symbol, price, topic, partition_id, kafka_offset, event_time, ingested_at FROM stock.kafka_ticks ORDER BY id DESC LIMIT 10;"
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, run_id, checked_at, kafka_ok, spark_ok, minio_ok, postgres_ok, kafka_ticks_count, missing_tables, notes FROM stock.pipeline_audit ORDER BY id DESC LIMIT 10;"
 ```
 
 ### Kiểm tra Kafka
@@ -717,15 +879,23 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 docker compose run --rm minio-client -c "mc alias set local http://minio:9000 minioadmin change_me_minio && mc cp --recursive /upload/kafka_ticks_parquet local/processed/kafka_ticks_parquet"
 ```
 
+### Kiểm tra Airflow
+
+```bash
+docker compose logs airflow-apiserver --tail=200
+docker compose logs airflow-scheduler --tail=200
+```
+
 ### UI
 
 ```text
 MinIO: http://localhost:9001
 Spark Master: http://localhost:8080
 Spark Worker: http://localhost:8081
+Airflow: http://localhost:8088
 ```
 
-## 22. Mục đích project
+## 23. Mục đích project
 
 Project phục vụ:
 
