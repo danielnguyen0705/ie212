@@ -4,31 +4,34 @@
 
 Đây là project môn `IE212 - Công nghệ dữ liệu lớn`, tập trung vào bài toán dự đoán giá cổ phiếu bằng mô hình lai giữa `LSTM` và `GNN`, sau đó từng bước tích hợp mô hình vào một hệ thống Big Data hoàn chỉnh.
 
-Project hiện được triển khai theo 2 giai đoạn chính:
+Project hiện được triển khai theo 2 giai đoạn chính.
 
-- `Giai đoạn 1 - Local ML Project`
-  - chạy notebook nghiên cứu
-  - tách code khỏi notebook thành project Python có cấu trúc
-  - chạy experiment ngoài notebook
-  - lưu checkpoint model
-  - kiểm tra load lại checkpoint
-- `Giai đoạn 2 - Big Data System`
-  - dựng hạ tầng bằng Docker Compose
-  - storage layer:
-    - `PostgreSQL`
-    - `MinIO`
-  - streaming layer:
-    - `Kafka`
-  - processing layer:
-    - `Spark standalone`
-    - `Spark batch read từ Kafka`
-    - `Spark structured streaming từ Kafka`
-    - `Spark structured streaming ghi sang PostgreSQL`
-  - các bước tiếp theo sẽ là:
-    - ghi dữ liệu Spark sang MinIO
-    - `Airflow`
-    - `FastAPI`
-    - tích hợp model vào pipeline Big Data
+### Giai đoạn 1 - Local ML Project
+
+- chạy notebook nghiên cứu
+- tách code khỏi notebook thành project Python có cấu trúc
+- chạy experiment ngoài notebook
+- lưu checkpoint model
+- kiểm tra load lại checkpoint
+
+### Giai đoạn 2 - Big Data System
+
+- dựng hạ tầng bằng Docker Compose
+- storage layer:
+- `PostgreSQL`
+- `MinIO`
+- streaming layer:
+- `Kafka`
+- processing layer:
+- `Spark standalone`
+- `Spark batch read từ Kafka`
+- `Spark structured streaming từ Kafka`
+- `Spark structured streaming ghi sang PostgreSQL`
+- `Spark batch ghi Parquet sang MinIO`
+- các bước tiếp theo:
+- `Airflow`
+- `FastAPI`
+- tích hợp model vào pipeline Big Data
 
 ## 2. Trạng thái hiện tại
 
@@ -49,31 +52,33 @@ Project hiện được triển khai theo 2 giai đoạn chính:
 
 - tạo thư mục `compose/`
 - dựng thành công các service đầu tiên bằng Docker Compose:
-  - `PostgreSQL`
-  - `MinIO`
-  - `Kafka`
-  - `Spark Master`
-  - `Spark Worker`
+- `PostgreSQL`
+- `MinIO`
+- `Kafka`
+- `Spark Master`
+- `Spark Worker`
 - PostgreSQL đã được khởi tạo:
-  - schema `stock`
-  - bảng `stock.predictions`
-  - bảng `stock.model_registry`
-  - bảng `stock.kafka_ticks`
+- schema `stock`
+- bảng `stock.predictions`
+- bảng `stock.model_registry`
+- bảng `stock.kafka_ticks`
 - MinIO đã được khởi tạo bucket:
-  - `raw`
-  - `processed`
-  - `models`
-  - `artifacts`
+- `raw`
+- `processed`
+- `models`
+- `artifacts`
 - Kafka đã được kiểm tra thành công:
-  - tạo topic `stock-price`
-  - producer gửi message vào topic
-  - consumer đọc lại message từ topic
+- tạo topic `stock-price`
+- producer gửi message vào topic
+- consumer đọc lại message từ topic
 - Spark đã được kiểm tra thành công:
-  - chạy Spark standalone smoke test
-  - submit job `simple_spark_check.py`
-  - đọc batch từ Kafka bằng `read_kafka_batch.py`
-  - đọc stream từ Kafka bằng `read_kafka_stream.py`
-  - ghi stream từ Kafka sang PostgreSQL bằng `write_kafka_stream_to_postgres.py`
+- chạy Spark standalone smoke test
+- submit job `simple_spark_check.py`
+- đọc batch từ Kafka bằng `read_kafka_batch.py`
+- đọc stream từ Kafka bằng `read_kafka_stream.py`
+- ghi stream từ Kafka sang PostgreSQL bằng `write_kafka_stream_to_postgres.py`
+- ghi batch từ Kafka ra Parquet bằng `write_kafka_batch_to_parquet.py`
+- upload Parquet lên MinIO bucket `processed`
 
 ## 3. Cấu trúc thư mục hiện tại
 
@@ -88,11 +93,14 @@ IE212/
 │           └── 001_init.sql
 ├── services/
 │   └── spark/
-│       └── jobs/
-│           ├── simple_spark_check.py
-│           ├── read_kafka_batch.py
-│           ├── read_kafka_stream.py
-│           └── write_kafka_stream_to_postgres.py
+│       ├── jobs/
+│       │   ├── simple_spark_check.py
+│       │   ├── read_kafka_batch.py
+│       │   ├── read_kafka_stream.py
+│       │   ├── write_kafka_stream_to_postgres.py
+│       │   └── write_kafka_batch_to_parquet.py
+│       └── out/
+│           └── kafka_ticks_parquet/
 ├── data/
 ├── models/
 ├── notebooks/
@@ -113,8 +121,9 @@ IE212/
 - `outputs/`: kết quả thực nghiệm
 - `models/`: checkpoint model và metadata
 - `compose/`: Docker Compose cho các service Big Data
-- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và các bảng PostgreSQL ban đầu
-- `services/spark/jobs/`: các job Spark dùng để smoke test, đọc batch, đọc stream và ghi dữ liệu sang PostgreSQL
+- `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu
+- `services/spark/jobs/`: các job Spark dùng để smoke test, đọc batch, đọc stream và ghi dữ liệu ra sink
+- `services/spark/out/`: dữ liệu output từ Spark trước khi upload lên MinIO
 
 ## 5. Các lệnh local ML đã dùng
 
@@ -142,13 +151,13 @@ python -m scripts.test_load_checkpoint
 - `test_model_forward`: kiểm tra forward pass của model
 - `test_expanding_data`: kiểm tra chuẩn bị dữ liệu theo expanding window
 - `test_graph_builder`: kiểm tra graph construction
-- `test_prepare_step`: kiểm tra train, val, test pack cho từng expanding step
+- `test_prepare_step`: kiểm tra train/val/test pack cho từng expanding step
 - `run_experiment`: chạy thực nghiệm ngoài notebook
 - `test_load_checkpoint`: kiểm tra load lại checkpoint đã lưu
 
 ## 6. Big Data phase - Storage, Streaming, Processing
 
-Hiện tại project đã dựng thành công các service Big Data đầu tiên bằng Docker Compose:
+Hiện tại project đã dựng thành công các service Big Data đầu tiên bằng Docker Compose.
 
 ### Storage layer
 
@@ -163,6 +172,11 @@ Hiện tại project đã dựng thành công các service Big Data đầu tiên
 
 - `Spark Master`
 - `Spark Worker`
+
+### Sink đã có
+
+- `PostgreSQL` qua Spark Structured Streaming
+- `MinIO` qua Spark batch + Parquet upload
 
 ## 7. Cấu hình Docker Compose hiện tại
 
@@ -179,6 +193,7 @@ Các file liên quan:
 - `ie212-kafka`
 - `ie212-spark-master`
 - `ie212-spark-worker`
+- `minio-client` dùng để upload file từ host mount lên MinIO
 
 ### Bucket MinIO đã có
 
@@ -239,7 +254,7 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id
 - bảng `stock.kafka_ticks`
 - dữ liệu mới do Spark ghi từ Kafka sẽ xuất hiện trong `stock.kafka_ticks`
 
-Lưu ý: file `compose/postgres/init/001_init.sql` trong repo hiện đang khởi tạo các bảng nền ban đầu. Nếu bạn dựng môi trường mới hoàn toàn, hãy bảo đảm bảng `stock.kafka_ticks` cũng đã được tạo trước khi chạy job stream ghi PostgreSQL.
+Lưu ý: `compose/postgres/init/001_init.sql` hiện trong repo vẫn mới mô tả phần khởi tạo các bảng nền ban đầu. Nếu dựng môi trường hoàn toàn mới, cần bảo đảm bảng `stock.kafka_ticks` đã được tạo trước khi chạy job stream ghi PostgreSQL.
 
 ## 10. Các lệnh kiểm tra MinIO
 
@@ -353,7 +368,7 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 
 - Spark Master và Spark Worker chạy ổn
 - Worker đăng ký thành công với Master
-- job `ie212-spark-check` chạy thành công
+- Job `ie212-spark-check` chạy thành công
 - DataFrame hiển thị 3 dòng dữ liệu mẫu
 - `Row count = 3`
 
@@ -383,9 +398,7 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 
 - thấy schema Kafka với các cột như `key`, `value`, `topic`, `partition`, `offset`, `timestamp`
 - thấy dữ liệu raw từ Kafka
-- parse được JSON thành các cột:
-  - `symbol`
-  - `price`
+- parse được JSON thành các cột `symbol`, `price`
 - `Row count = 3`
 
 ## 14. Spark Structured Streaming từ Kafka
@@ -471,13 +484,66 @@ docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id
 
 ### Kết quả mong đợi
 
-- terminal Spark hiển thị: `Batch ... wrote ... rows to PostgreSQL`
-- PostgreSQL query ra được các dòng mới như:
-  - `META`
-  - `AMZN`
-  - `NFLX`
+- terminal Spark hiển thị `Batch ... wrote ... rows to PostgreSQL`
+- PostgreSQL query ra được các dòng mới như `META`, `AMZN`, `NFLX`
 
-## 16. Các lệnh quản lý Docker Compose
+## 16. Spark batch ghi Parquet và upload sang MinIO
+
+### File job
+
+```text
+services/spark/jobs/write_kafka_batch_to_parquet.py
+```
+
+### Chạy batch job ghi Parquet
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/write_kafka_batch_to_parquet.py
+```
+
+### Kiểm tra file Parquet trên host
+
+```powershell
+Get-ChildItem services\spark\out\kafka_ticks_parquet -Recurse
+```
+
+### Upload Parquet lên MinIO
+
+```bash
+docker compose run --rm minio-client -c "mc alias set local http://minio:9000 minioadmin change_me_minio && mc cp --recursive /upload/kafka_ticks_parquet local/processed/kafka_ticks_parquet"
+```
+
+### Kiểm tra object trên MinIO
+
+Có thể kiểm tra theo 2 cách.
+
+Cách 1: qua MinIO UI
+
+```text
+http://localhost:9001
+```
+
+Vào bucket `processed` và kiểm tra thư mục `kafka_ticks_parquet`.
+
+Cách 2: bằng `mc ls`
+
+```bash
+docker compose run --rm minio-client -c "mc alias set local http://minio:9000 minioadmin change_me_minio && mc ls --recursive local/processed/kafka_ticks_parquet"
+```
+
+### Chức năng
+
+- Spark đọc dữ liệu Kafka theo batch
+- parse JSON
+- ghi ra file Parquet trong thư mục local mount
+- dùng `mc` upload thư mục Parquet sang bucket `processed` của MinIO
+
+### Kết quả mong đợi
+
+- thấy file `part-...snappy.parquet` và `_SUCCESS` trong `services/spark/out/kafka_ticks_parquet`
+- MinIO bucket `processed` có thư mục `kafka_ticks_parquet`
+
+## 17. Các lệnh quản lý Docker Compose
 
 ### Xem service đang chạy
 
@@ -535,7 +601,7 @@ docker compose down -v
 
 `Cẩn thận:` `down -v` sẽ xóa dữ liệu PostgreSQL, MinIO và các volume liên quan.
 
-## 17. Những gì đã xác nhận thành công
+## 18. Những gì đã xác nhận thành công
 
 ### Local ML
 
@@ -568,29 +634,32 @@ docker compose down -v
 - Spark batch đọc Kafka thành công
 - Spark structured streaming đọc Kafka thành công
 - Spark structured streaming ghi PostgreSQL thành công
+- Spark batch ghi Parquet thành công
+- Parquet upload lên MinIO thành công
 - pipeline cơ bản `Kafka -> Spark -> PostgreSQL` đã hoạt động
+- pipeline cơ bản `Kafka -> Spark -> MinIO` đã hoạt động
 
-## 18. Bước tiếp theo
+## 19. Bước tiếp theo
 
 Roadmap tiếp theo của project là:
 
-- cho Spark ghi dữ liệu sang MinIO
-- xây pipeline dữ liệu trung gian để chuẩn bị cho model serving
 - dựng `Airflow` để orchestration pipeline
+- tạo DAG điều phối `Kafka -> Spark -> PostgreSQL/MinIO`
 - dựng `FastAPI` để serving model
 - tích hợp model local hiện tại vào hệ thống Big Data end-to-end
 
-## 19. Ghi chú
+## 20. Ghi chú
 
 - local ML phase hiện đã hoàn thành ở mức đủ tốt để chuyển sang hạ tầng
 - Big Data phase hiện đã hoàn thành:
-  - storage layer đầu tiên
-  - streaming layer đầu tiên
-  - processing layer đầu tiên
-  - sink đầu tiên vào PostgreSQL
-- đây là checkpoint rất tốt trước khi sang object storage sink hoặc orchestration
+- storage layer đầu tiên
+- streaming layer đầu tiên
+- processing layer đầu tiên
+- sink vào PostgreSQL
+- sink vào MinIO
+- đây là checkpoint rất tốt trước khi sang orchestration bằng Airflow
 
-## 20. Quick start ngắn gọn
+## 21. Quick start ngắn gọn
 
 ### Local ML
 
@@ -641,6 +710,13 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2,org.postgresql:postgresql:42.7.10 /opt/spark/jobs/write_kafka_stream_to_postgres.py
 ```
 
+### Kiểm tra Spark batch ghi Parquet và upload MinIO
+
+```bash
+docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/write_kafka_batch_to_parquet.py
+docker compose run --rm minio-client -c "mc alias set local http://minio:9000 minioadmin change_me_minio && mc cp --recursive /upload/kafka_ticks_parquet local/processed/kafka_ticks_parquet"
+```
+
 ### UI
 
 ```text
@@ -649,7 +725,7 @@ Spark Master: http://localhost:8080
 Spark Worker: http://localhost:8081
 ```
 
-## 21. Mục đích project
+## 22. Mục đích project
 
 Project phục vụ:
 

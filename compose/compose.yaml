@@ -110,6 +110,7 @@ services:
       - "${SPARK_MASTER_WEBUI_PORT}:${SPARK_MASTER_WEBUI_PORT}"
     volumes:
       - ../services/spark/jobs:/opt/spark/jobs
+      - ../services/spark/out:/opt/spark/out
       - spark_ivy_cache:/tmp/.ivy2
     networks:
       - bigdata_net
@@ -141,9 +142,19 @@ services:
       - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
     volumes:
       - ../services/spark/jobs:/opt/spark/jobs
+      - ../services/spark/out:/opt/spark/out
       - spark_ivy_cache:/tmp/.ivy2
     networks:
       - bigdata_net
+  
+  minio-client:
+    image: minio/mc
+    profiles: ["manual"]
+    entrypoint: /bin/sh
+    networks:
+      - bigdata_net
+    volumes:
+      - ../services/spark/out:/upload
 
 volumes:
   postgres_data:
