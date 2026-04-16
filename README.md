@@ -4,6 +4,10 @@
 
 Đây là project môn **IE212 - Công nghệ dữ liệu lớn**, tập trung vào bài toán **dự đoán giá cổ phiếu** bằng mô hình lai giữa **LSTM** và **GNN**, sau đó từng bước tích hợp mô hình vào một hệ thống Big Data hoàn chỉnh.
 
+## Sơ đồ hệ thống
+
+![System Architecture](img/system_architecture.png)
+
 Project hiện được triển khai theo 2 giai đoạn chính:
 
 - **Giai đoạn 1 - Local ML Project**
