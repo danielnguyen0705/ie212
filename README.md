@@ -77,6 +77,8 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Gói `psycopg2-binary` đã nằm trong `requirements.txt`, nên sau bước này các script local có ghi dữ liệu vào PostgreSQL sẽ chạy được luôn.
+
 ## 3. Chạy local ML pipeline từ đầu
 
 ### Bước 3.1 - Tải dữ liệu raw về `data/raw/`
@@ -86,6 +88,12 @@ Lệnh này tải dữ liệu theo danh sách ticker trong `src/config.py`.
 ```powershell
 python scripts/run_train.py
 ```
+
+Hành vi hiện tại của lệnh này:
+
+- nếu `data/raw/<TICKER>.csv` đã có thì script sẽ ưu tiên dùng lại file local
+- nếu chưa có thì script mới thử tải từ `yfinance`
+- nếu muốn ép tải lại toàn bộ, dùng `python scripts/run_train.py --refresh`
 
 Sau khi chạy xong, bạn sẽ thấy các file như:
 
@@ -163,7 +171,7 @@ docker compose --env-file compose/.env -f compose/compose.yaml up -d --build
 
 Các service chính:
 
-- PostgreSQL: `localhost:5432`
+- PostgreSQL: `localhost:15432`
 - MinIO API: `http://localhost:9000`
 - MinIO Console: `http://localhost:9001`
 - Kafka host port: `localhost:29092`
@@ -178,7 +186,13 @@ Các service chính:
 Sau khi đã có `outputs/inference/latest_prediction.json`, bạn có thể lưu prediction vào database:
 
 ```powershell
-python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 5432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+```
+
+Nếu máy host của bạn vẫn có xung đột khi gọi PostgreSQL qua `localhost`, có thể chạy trực tiếp trong container ML runner:
+
+```powershell
+docker exec ie212-ml-infer python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host postgres --pg-port 5432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
 ```
 
 ### Bước 4.5 - Xem dashboard
@@ -206,7 +220,7 @@ Nếu bạn cần cả dashboard:
 Copy-Item compose\.env.example compose\.env
 docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
 docker compose --env-file compose/.env -f compose/compose.yaml up -d --build
-python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 5432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
 ```
 
 ## 6. Một lệnh để reset và chạy lại từ đầu
@@ -244,7 +258,7 @@ Sau đó bạn chạy lại từ Bước 2.
 7. Tạo `compose/.env` từ `compose/.env.example`.
 8. Build Airflow image.
 9. Start Docker stack.
-10. Chạy `python scripts/save_inference_to_postgres.py`.
+10. Chạy `python scripts/save_inference_to_postgres.py --pg-port 15432`.
 11. Mở dashboard và docs.
 
 ## 8. Ghi chú quan trọng
@@ -252,4 +266,5 @@ Sau đó bạn chạy lại từ Bước 2.
 - Nếu chưa chạy `scripts/run_experiment.py` thì sẽ chưa có `models/hybrid_expanding_best_full.pt`.
 - Nếu chưa có `data/raw/*.csv` thì `build_latest_inference_bundle.py` sẽ không chạy được.
 - `compose/.env` không được commit, nên luôn tạo từ `compose/.env.example`.
+- Cổng PostgreSQL publish ra host là `15432`; cổng `5432` chỉ dùng nội bộ giữa các container.
 - File `services/api/main.py` đọc lịch sử giá từ `data/raw/`, nên dashboard cần raw CSV tồn tại nếu muốn xem price history.

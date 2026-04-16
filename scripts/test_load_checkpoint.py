@@ -1,6 +1,7 @@
 # scripts/test_load_checkpoint.py
 
 import torch
+import _path_setup
 
 from src.config import FEATURE_COLS, LSTM_HIDDEN, GNN_HIDDEN, MLP_HIDDEN, DROPOUT
 from src.models import LSTMOnlyModel, HybridLSTMGNNGraphGate
