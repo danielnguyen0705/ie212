@@ -41,5 +41,11 @@ def airflow_runtime_env() -> dict[str, str]:
         "IE212_MINIO_PARQUET_PREFIX",
         "IE212_PARQUET_LOCAL_DIR",
         "IE212_SPARK_PARQUET_DIRNAME",
+        "IE212_ML_RUNNER_CONTAINER",
+        "IE212_MODEL_CHECKPOINT",
+        "IE212_MODEL_NAME",
+        "IE212_INFERENCE_RAW_DIR",
+        "IE212_INFERENCE_BUNDLE_PATH",
+        "IE212_INFERENCE_OUTPUT_JSON",
     ]
     return {k: env(k, "") for k in keys}

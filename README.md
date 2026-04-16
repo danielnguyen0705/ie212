@@ -12,6 +12,7 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - chạy experiment ngoài notebook
   - lưu checkpoint model
   - kiểm tra load lại checkpoint
+  - chạy inference từ checkpoint
 - **Giai đoạn 2 - Big Data System**
   - dựng hạ tầng bằng Docker Compose
   - storage layer:
@@ -31,16 +32,15 @@ Project hiện được triển khai theo 2 giai đoạn chính:
     - DAG smoke test
     - DAG validation pipeline
     - DAG full validation pipeline
-    - DAG execution pipeline
-  - config cleanup:
-    - gom biến dùng chung vào `.env`
-    - truyền biến vào Airflow services qua `compose.yaml`
-    - tạo helper `ie212_settings.py` để DAG đọc config runtime
-  - các bước tiếp theo:
-    - chuẩn hóa output path trên MinIO
-    - nối checkpoint model local vào pipeline
-    - dựng FastAPI
-    - model serving end-to-end
+    - DAG Spark execution pipeline
+    - DAG inference ingest pipeline
+    - DAG end-to-end inference pipeline
+  - inference layer:
+    - build inference bundle từ raw CSV
+    - load checkpoint hybrid
+    - sinh prediction JSON
+    - lưu prediction vào PostgreSQL
+    - orchestration toàn bộ bằng Airflow
 
 ---
 
@@ -58,6 +58,10 @@ Project hiện được triển khai theo 2 giai đoạn chính:
 - chạy experiment ngoài notebook thành công
 - lưu checkpoint model thành công
 - load lại checkpoint thành công
+- inspect checkpoint hybrid thành công
+- build inference bundle thành công
+- chạy inference từ checkpoint thành công
+- sinh file `outputs/inference/latest_prediction.json`
 
 #### Big Data phase
 
@@ -73,6 +77,7 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - `Airflow Dag Processor`
   - `Airflow Triggerer`
   - `MinIO Client`
+  - `ML Inference Runner`
 - PostgreSQL đã có:
   - schema `stock`
   - bảng `stock.predictions`
@@ -80,6 +85,7 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - bảng `stock.kafka_ticks`
   - bảng `stock.kafka_ticks_batch`
   - bảng `stock.pipeline_audit`
+  - bảng `stock.inference_predictions`
 - MinIO đã có bucket:
   - `raw`
   - `processed`
@@ -102,14 +108,10 @@ Project hiện được triển khai theo 2 giai đoạn chính:
   - `ie212_data_pipeline` thành công
   - `ie212_full_validation_pipeline` thành công
   - `ie212_spark_exec_pipeline` thành công
+  - `ie212_inference_ingest_pipeline` thành công
+  - `ie212_end_to_end_inference_pipeline` thành công
 - custom Airflow image có Docker CLI đã build thành công
-- DAG execution hiện đã chạy được chuỗi:
-  - Spark batch ghi PostgreSQL
-  - kiểm tra batch table
-  - Spark batch ghi Parquet
-  - kiểm tra local Parquet
-  - upload Parquet lên MinIO
-  - ghi audit vào PostgreSQL
+- custom ML inference runner image đã build thành công với `torch CPU`
 
 ---
 
@@ -124,6 +126,8 @@ IE212/
 │   │   ├── ie212_data_pipeline.py
 │   │   ├── ie212_full_validation_pipeline.py
 │   │   ├── ie212_spark_exec_pipeline.py
+│   │   ├── ie212_inference_ingest_pipeline.py
+│   │   ├── ie212_end_to_end_inference_pipeline.py
 │   │   └── ie212_settings.py
 │   ├── logs/
 │   ├── plugins/
@@ -134,22 +138,45 @@ IE212/
 │   └── postgres/
 │       └── init/
 │           └── 001_init.sql
-├── services/
-│   └── spark/
-│       ├── jobs/
-│       │   ├── simple_spark_check.py
-│       │   ├── read_kafka_batch.py
-│       │   ├── read_kafka_stream.py
-│       │   ├── write_kafka_stream_to_postgres.py
-│       │   ├── write_kafka_batch_to_parquet.py
-│       │   └── write_kafka_batch_to_postgres.py
-│       └── out/
-│           └── kafka_ticks_parquet/
 ├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── inference/
+│       └── latest_window.npz
 ├── models/
+│   ├── hybrid_expanding_best_full.pt
+│   ├── lstm_expanding_best_full.pt
+│   └── run_metadata_full.json
 ├── notebooks/
 ├── outputs/
+│   └── inference/
+│       └── latest_prediction.json
 ├── scripts/
+│   ├── inspect_checkpoint.py
+│   ├── run_checkpoint_inference.py
+│   ├── build_latest_inference_bundle.py
+│   ├── save_inference_to_postgres.py
+│   ├── run_experiment.py
+│   ├── run_train.py
+│   ├── test_expanding_data.py
+│   ├── test_graph_builder.py
+│   ├── test_load_checkpoint.py
+│   ├── test_model_forward.py
+│   └── test_prepare_step.py
+├── services/
+│   ├── spark/
+│   │   ├── jobs/
+│   │   │   ├── simple_spark_check.py
+│   │   │   ├── read_kafka_batch.py
+│   │   │   ├── read_kafka_stream.py
+│   │   │   ├── write_kafka_stream_to_postgres.py
+│   │   │   ├── write_kafka_batch_to_parquet.py
+│   │   │   └── write_kafka_batch_to_postgres.py
+│   │   └── out/
+│   │       └── kafka_ticks_parquet/
+│   └── inference/
+│       ├── Dockerfile
+│       └── requirements.infer.txt
 ├── src/
 ├── .gitignore
 ├── README.md
@@ -159,22 +186,43 @@ IE212/
 ## 4. Ý nghĩa các thư mục chính
 
 - `src/`: mã nguồn chính sau khi tách khỏi notebook
-- `scripts/`: các script train, test, evaluate, experiment
+- `scripts/`: các script train, test, evaluate, experiment, inference
 - `notebooks/`: notebook nghiên cứu gốc
-- `data/`: dữ liệu raw và processed
-- `outputs/`: kết quả thực nghiệm
+- `data/raw/`: dữ liệu cổ phiếu theo từng ticker
+- `data/inference/`: bundle tensor dùng cho inference
+- `outputs/inference/`: file prediction JSON sau khi infer
 - `models/`: checkpoint model và metadata
 - `compose/`: Docker Compose cho các service Big Data
 - `compose/postgres/init/001_init.sql`: SQL khởi tạo schema và bảng ban đầu
 - `services/spark/jobs/`: các Spark jobs để test và xử lý dữ liệu
 - `services/spark/out/`: output local của Spark trước khi upload MinIO
+- `services/inference/`: Dockerfile và requirements cho container ML inference
 - `airflow/dags/`: các DAG orchestration
 - `airflow/logs/`: log của Airflow
 - `airflow/plugins/`: plugin Airflow nếu cần mở rộng
 - `airflow/Dockerfile`: custom image Airflow có Docker CLI
 - `airflow/dags/ie212_settings.py`: helper đọc cấu hình runtime từ environment variables
 
-## 5. Các lệnh local ML đã dùng
+## 5. Checkpoint model hiện có
+
+Hiện tại trong thư mục `models/` có 2 checkpoint chính:
+
+- `models/hybrid_expanding_best_full.pt`
+- `models/lstm_expanding_best_full.pt`
+
+Checkpoint đang được dùng cho inference pipeline là:
+
+- `models/hybrid_expanding_best_full.pt`
+
+Kết quả inspect checkpoint hybrid:
+
+- `seq_input_dim = 1`
+- `node_input_dim = 7`
+- `lstm_hidden = 64`
+- `gnn_hidden = 32`
+- `mlp_hidden = 64`
+
+## 6. Các lệnh local ML đã dùng
 
 Kích hoạt môi trường ảo trên Windows PowerShell:
 
@@ -194,17 +242,76 @@ python -m scripts.run_experiment
 python -m scripts.test_load_checkpoint
 ```
 
-Ý nghĩa nhanh:
+Kiểm tra checkpoint:
 
-- `run_train`: chạy pipeline train cơ bản
-- `test_model_forward`: kiểm tra forward pass
-- `test_expanding_data`: kiểm tra dữ liệu expanding window
-- `test_graph_builder`: kiểm tra graph construction
-- `test_prepare_step`: kiểm tra train/val/test pack
-- `run_experiment`: chạy thực nghiệm ngoài notebook
-- `test_load_checkpoint`: kiểm tra load checkpoint
+```bash
+python -m scripts.inspect_checkpoint --checkpoint models\hybrid_expanding_best_full.pt
+python -m scripts.inspect_checkpoint --checkpoint models\lstm_expanding_best_full.pt
+```
 
-## 6. Big Data architecture hiện tại
+## 7. Inference local từ checkpoint
+
+### 7.1 Build inference bundle
+
+Script:
+
+- `scripts/build_latest_inference_bundle.py`
+
+Chức năng:
+
+- đọc dữ liệu từ `data/raw/*.csv`
+- intersect ngày giao dịch chung giữa các ticker
+- build tensor:
+  - `X_seq`
+  - `X_node`
+  - `A`
+  - `last_close`
+- lưu bundle ra `data/inference/latest_window.npz`
+
+Lệnh chạy:
+
+```bash
+python -m scripts.build_latest_inference_bundle --data-dir data\raw --output data\inference\latest_window.npz
+```
+
+### 7.2 Chạy checkpoint inference
+
+Script:
+
+- `scripts/run_checkpoint_inference.py`
+
+Chức năng:
+
+- load checkpoint hybrid
+- load bundle `.npz`
+- chạy inference
+- sinh file `outputs/inference/latest_prediction.json`
+
+Lệnh chạy:
+
+```bash
+python -m scripts.run_checkpoint_inference --checkpoint models\hybrid_expanding_best_full.pt --input-npz data\inference\latest_window.npz --output-json outputs\inference\latest_prediction.json --device cpu
+```
+
+### 7.3 Lưu prediction JSON vào PostgreSQL
+
+Script:
+
+- `scripts/save_inference_to_postgres.py`
+
+Chức năng:
+
+- tạo bảng `stock.inference_predictions` nếu chưa có
+- đọc file JSON prediction
+- ghi prediction vào PostgreSQL
+
+Lệnh local tiêu chuẩn:
+
+```bash
+python -m scripts.save_inference_to_postgres --input-json outputs\inference\latest_prediction.json --model-name hybrid_expanding_best_full --pg-host 127.0.0.1 --pg-port 5432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+```
+
+## 8. Big Data architecture hiện tại
 
 - **Storage layer**
   - PostgreSQL
@@ -219,16 +326,53 @@ python -m scripts.test_load_checkpoint
   - Airflow Scheduler
   - Airflow Dag Processor
   - Airflow Triggerer
+- **Inference layer**
+  - ML Runner container `ie212-ml-infer`
+  - PyTorch CPU
+  - bundle builder
+  - checkpoint inference
+  - prediction JSON writer
+  - PostgreSQL prediction sink
 - **Sink hiện có**
   - PostgreSQL qua Spark Structured Streaming
   - PostgreSQL qua Spark batch
   - MinIO qua Spark batch + Parquet upload
+  - PostgreSQL qua inference pipeline
 
-## 7. Shared runtime config
+## 9. Shared runtime config
 
 Hiện tại project đã gom các biến dùng chung vào `compose/.env` để giảm hard-code trong DAG.
 
-Các biến IE212 dùng chung:
+PostgreSQL:
+
+```env
+POSTGRES_DB=stock_project
+POSTGRES_USER=stock_user
+POSTGRES_PASSWORD=change_me_postgres
+POSTGRES_PORT=5432
+```
+
+MinIO:
+
+```env
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=change_me_minio
+```
+
+Kafka:
+
+```env
+KAFKA_TOPIC_STOCK_PRICE=stock-price
+```
+
+Airflow:
+
+```env
+AIRFLOW_ADMIN_USER=airflow
+AIRFLOW_ADMIN_PASSWORD=airflow
+```
+
+IE212 runtime vars:
 
 ```env
 IE212_POSTGRES_HOST=postgres
@@ -255,15 +399,16 @@ IE212_MINIO_PARQUET_PREFIX=kafka_ticks_parquet
 
 IE212_PARQUET_LOCAL_DIR=/opt/airflow/shared/spark_out/kafka_ticks_parquet
 IE212_SPARK_PARQUET_DIRNAME=kafka_ticks_parquet
+
+IE212_ML_RUNNER_CONTAINER=ie212-ml-infer
+IE212_MODEL_CHECKPOINT=/workspace/models/hybrid_expanding_best_full.pt
+IE212_MODEL_NAME=hybrid_expanding_best_full
+IE212_INFERENCE_RAW_DIR=/workspace/data/raw
+IE212_INFERENCE_BUNDLE_PATH=/workspace/data/inference/latest_window.npz
+IE212_INFERENCE_OUTPUT_JSON=/workspace/outputs/inference/latest_prediction.json
 ```
 
-Ý nghĩa:
-
-- DAG không còn hard-code password/container name nhiều như trước
-- Airflow services đọc các biến này từ `compose.yaml`
-- `ie212_settings.py` dùng để lấy config runtime và tạo PostgreSQL connection
-
-## 8. Cách chạy toàn bộ system
+## 10. Cách chạy toàn bộ system
 
 Vào thư mục compose:
 
@@ -277,10 +422,16 @@ Khởi động các service chính:
 docker compose up -d
 ```
 
-Khởi động thêm minio-client profile nếu cần:
+Khởi động thêm `minio-client` nếu cần:
 
 ```bash
 docker compose --profile manual up -d minio-client
+```
+
+Build và chạy ML inference runner:
+
+```bash
+docker compose up -d --build ml-infer
 ```
 
 Kiểm tra trạng thái:
@@ -289,7 +440,7 @@ Kiểm tra trạng thái:
 docker compose ps
 ```
 
-## 9. PostgreSQL
+## 11. PostgreSQL
 
 Kiểm tra schema:
 
@@ -315,25 +466,22 @@ Query bảng batch sink:
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT COUNT(*) FROM stock.kafka_ticks_batch;"
 ```
 
-Query bảng audit:
+Query bảng audit pipeline:
 
 ```bash
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, run_id, checked_at, kafka_ok, spark_ok, minio_ok, postgres_ok, parquet_local_ok, kafka_ticks_count, parquet_files_count, has_success_marker, missing_tables, notes FROM stock.pipeline_audit ORDER BY id DESC LIMIT 10;"
 ```
 
-Kết quả mong đợi:
+Query bảng prediction inference:
 
-- có schema `stock`
-- có các bảng:
-  - `predictions`
-  - `model_registry`
-  - `kafka_ticks`
-  - `kafka_ticks_batch`
-  - `pipeline_audit`
+```bash
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT COUNT(*) FROM stock.inference_predictions;"
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT prediction_run_id, as_of_date, model_name, ticker, last_close, pred_close, pred_return, graph_gate, created_at FROM stock.inference_predictions ORDER BY id DESC LIMIT 20;"
+```
 
-Lưu ý: `compose/postgres/init/001_init.sql` hiện vẫn là bản khởi tạo nền. Nếu dựng môi trường mới hoàn toàn, cần đảm bảo các bảng `stock.kafka_ticks`, `stock.kafka_ticks_batch`, `stock.pipeline_audit` được tạo trước khi chạy các job/DAG phụ thuộc.
+Lưu ý: `compose/postgres/init/001_init.sql` hiện vẫn là phần khởi tạo nền ban đầu. Nếu dựng môi trường mới hoàn toàn, cần bảo đảm các bảng `stock.kafka_ticks`, `stock.kafka_ticks_batch`, `stock.pipeline_audit`, `stock.inference_predictions` đã tồn tại trước khi chạy các job/DAG tương ứng.
 
-## 10. MinIO
+## 12. MinIO
 
 Health check:
 
@@ -356,7 +504,7 @@ Bucket hiện có:
 
 Kiểm tra object Parquet: vào bucket `processed` và kiểm tra thư mục chứa output Parquet.
 
-## 11. Kafka
+## 13. Kafka
 
 Khởi động Kafka riêng:
 
@@ -402,7 +550,7 @@ Consumer:
 docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-consumer.sh --topic stock-price --from-beginning --bootstrap-server localhost:9092 --max-messages 3
 ```
 
-## 12. Spark standalone
+## 14. Spark standalone
 
 Khởi động Spark:
 
@@ -427,63 +575,59 @@ Smoke test:
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/jobs/simple_spark_check.py
 ```
 
-## 13. Các Spark jobs hiện có
+## 15. Các Spark jobs hiện có
 
-### 13.1 Batch read từ Kafka
-
-File: `services/spark/jobs/read_kafka_batch.py`
+Batch read từ Kafka:
 
 ```bash
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_batch.py
 ```
 
-### 13.2 Structured Streaming read từ Kafka
-
-File: `services/spark/jobs/read_kafka_stream.py`
+Structured Streaming read từ Kafka:
 
 ```bash
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/read_kafka_stream.py
 ```
 
-### 13.3 Structured Streaming ghi PostgreSQL
-
-File: `services/spark/jobs/write_kafka_stream_to_postgres.py`
+Structured Streaming ghi PostgreSQL:
 
 ```bash
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2,org.postgresql:postgresql:42.7.10 /opt/spark/jobs/write_kafka_stream_to_postgres.py
 ```
 
-### 13.4 Batch ghi Parquet
-
-File: `services/spark/jobs/write_kafka_batch_to_parquet.py`
+Batch ghi Parquet:
 
 ```bash
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2 /opt/spark/jobs/write_kafka_batch_to_parquet.py
 ```
 
-### 13.5 Batch ghi PostgreSQL
-
-File: `services/spark/jobs/write_kafka_batch_to_postgres.py`
+Batch ghi PostgreSQL:
 
 ```bash
 docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.2,org.postgresql:postgresql:42.7.10 /opt/spark/jobs/write_kafka_batch_to_postgres.py
 ```
 
-## 14. MinIO client
+## 16. ML inference runner
 
-Chạy service minio-client:
+Service:
+
+- `ie212-ml-infer`
+
+Chức năng:
+
+- chạy bundle builder
+- chạy checkpoint inference
+- chạy script save prediction vào PostgreSQL
+
+Test thư viện trong container:
 
 ```bash
-docker compose --profile manual up -d minio-client
+docker exec -it ie212-ml-infer python -c "import torch, pandas, numpy, psycopg2; print(torch.__version__)"
 ```
 
-Upload Parquet thủ công:
+Kỳ vọng: in ra version kiểu `2.11.0+cpu`.
 
-```bash
-docker exec -it ie212-minio-client sh -lc "mc alias set local http://minio:9000 minioadmin change_me_minio && mc cp --recursive /upload/kafka_ticks_parquet local/processed/kafka_ticks_parquet"
-```
-
-## 15. Airflow setup
+## 17. Airflow setup
 
 Build custom Airflow image:
 
@@ -515,20 +659,16 @@ Mở UI:
 http://localhost:8088
 ```
 
-## 16. Các DAG Airflow hiện có
+## 18. Các DAG Airflow hiện có
 
-### 16.1 ie212_smoke_test
-
-File: `airflow/dags/ie212_smoke_test.py`
+### 18.1 ie212_smoke_test
 
 Chức năng:
 
 - smoke test Airflow stack
 - kiểm tra task đơn giản chạy được
 
-### 16.2 ie212_data_pipeline
-
-File: `airflow/dags/ie212_data_pipeline.py`
+### 18.2 ie212_data_pipeline
 
 Chức năng:
 
@@ -539,9 +679,7 @@ Chức năng:
 - kiểm tra PostgreSQL
 - ghi audit vào `stock.pipeline_audit`
 
-### 16.3 ie212_full_validation_pipeline
-
-File: `airflow/dags/ie212_full_validation_pipeline.py`
+### 18.3 ie212_full_validation_pipeline
 
 Chức năng:
 
@@ -549,9 +687,7 @@ Chức năng:
 - kiểm tra local Parquet output
 - ghi audit đầy đủ hơn vào `stock.pipeline_audit`
 
-### 16.4 ie212_spark_exec_pipeline
-
-File: `airflow/dags/ie212_spark_exec_pipeline.py`
+### 18.4 ie212_spark_exec_pipeline
 
 Chức năng:
 
@@ -562,9 +698,26 @@ Chức năng:
 - upload Parquet lên MinIO
 - ghi audit cuối pipeline vào `stock.pipeline_audit`
 
-### 16.5 ie212_settings
+### 18.5 ie212_inference_ingest_pipeline
 
-File: `airflow/dags/ie212_settings.py`
+Chức năng:
+
+- ingest `outputs/inference/latest_prediction.json`
+- lưu prediction vào `stock.inference_predictions`
+- validate bảng prediction
+
+### 18.6 ie212_end_to_end_inference_pipeline
+
+Chức năng:
+
+- build `latest_window.npz`
+- chạy checkpoint inference
+- lưu prediction vào PostgreSQL
+- validate kết quả cuối
+
+Đây là DAG end-to-end inference hoàn chỉnh hiện tại.
+
+### 18.7 ie212_settings
 
 Chức năng:
 
@@ -572,7 +725,7 @@ Chức năng:
 - tạo PostgreSQL connection helper
 - gom runtime env để dùng lại trong DAG
 
-## 17. Kết quả đã xác nhận thành công
+## 19. Kết quả đã xác nhận thành công
 
 ### Storage
 
@@ -595,6 +748,14 @@ Chức năng:
 - batch Parquet output thành công
 - upload Parquet vào MinIO thành công
 
+### Inference
+
+- inspect checkpoint hybrid thành công
+- build inference bundle thành công
+- run checkpoint inference thành công
+- prediction JSON sinh thành công
+- prediction lưu vào PostgreSQL thành công
+
 ### Orchestration
 
 - Airflow stack chạy ổn
@@ -603,27 +764,25 @@ Chức năng:
 - `ie212_data_pipeline` thành công
 - `ie212_full_validation_pipeline` thành công
 - `ie212_spark_exec_pipeline` thành công
+- `ie212_inference_ingest_pipeline` thành công
+- `ie212_end_to_end_inference_pipeline` thành công
 
-### Audit / DB evidence
+### Database evidence
 
-- `stock.kafka_ticks_batch` hiện có dữ liệu
-- `stock.pipeline_audit` đã có bản ghi mới nhất với:
-  - `kafka_ok = true`
-  - `spark_ok = true`
-  - `minio_ok = true`
-  - `postgres_ok = true`
-  - `parquet_local_ok = true`
-  - `parquet_files_count > 0`
-  - `has_success_marker = true`
+- `stock.kafka_ticks_batch` có dữ liệu
+- `stock.pipeline_audit` có nhiều bản ghi audit hợp lệ
+- `stock.inference_predictions` hiện có dữ liệu prediction được lưu nhiều lần
+- sau lần chạy `ie212_end_to_end_inference_pipeline`, tổng số dòng prediction đã tăng thêm đúng theo số ticker
 
-## 18. Quick start ngắn gọn
+## 20. Quick start ngắn gọn
 
 Local ML:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m scripts.run_experiment
-python -m scripts.test_load_checkpoint
+python -m scripts.inspect_checkpoint --checkpoint models\hybrid_expanding_best_full.pt
+python -m scripts.build_latest_inference_bundle --data-dir data\raw --output data\inference\latest_window.npz
+python -m scripts.run_checkpoint_inference --checkpoint models\hybrid_expanding_best_full.pt --input-npz data\inference\latest_window.npz --output-json outputs\inference\latest_prediction.json --device cpu
 ```
 
 Big Data services:
@@ -632,6 +791,7 @@ Big Data services:
 cd compose
 docker compose up -d
 docker compose --profile manual up -d minio-client
+docker compose up -d --build ml-infer
 docker compose ps
 ```
 
@@ -639,7 +799,8 @@ PostgreSQL kiểm tra nhanh:
 
 ```bash
 docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT COUNT(*) FROM stock.kafka_ticks_batch;"
-docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT id, run_id, checked_at, kafka_ok, spark_ok, minio_ok, postgres_ok, parquet_local_ok, kafka_ticks_count, parquet_files_count, has_success_marker, missing_tables, notes FROM stock.pipeline_audit ORDER BY id DESC LIMIT 10;"
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT COUNT(*) FROM stock.inference_predictions;"
+docker exec -it ie212-postgres psql -U stock_user -d stock_project -c "SELECT prediction_run_id, as_of_date, model_name, ticker, last_close, pred_close, pred_return, graph_gate, created_at FROM stock.inference_predictions ORDER BY id DESC LIMIT 20;"
 ```
 
 Airflow kiểm tra nhanh:
@@ -650,27 +811,41 @@ docker compose logs airflow-apiserver --tail=200
 docker compose logs airflow-scheduler --tail=200
 ```
 
-## 19. Ghi chú
+UI:
 
-- Hiện tại pipeline execution đã chạy thành công.
-- Hard-code secrets trong DAG đã được giảm đáng kể nhờ chuyển qua `.env` và `ie212_settings.py`.
-- Đường dẫn object trên MinIO vẫn có thể được làm gọn hơn ở bước tiếp theo để tránh lồng thư mục trùng tên.
-- Đây là checkpoint rất tốt trước khi tích hợp checkpoint model local và dựng FastAPI.
+```text
+MinIO: http://localhost:9001
+Spark Master: http://localhost:8080
+Spark Worker: http://localhost:8081
+Airflow: http://localhost:8088
+```
 
-## 20. Bước tiếp theo
+## 21. Ghi chú
 
-Roadmap tiếp theo:
+- Hard-code secrets trong DAG đã được giảm đáng kể nhờ `.env` và `ie212_settings.py`.
+- `torch` trong `ml-infer` đang dùng bản CPU để tránh kéo CUDA package quá nặng.
+- Pipeline inference hiện dựa trên dữ liệu raw CSV cục bộ, chưa lấy trực tiếp từ Kafka/Spark output.
+- Đây là checkpoint rất tốt trước khi dựng API demo.
 
-- làm sạch đường dẫn upload MinIO
-- chuẩn bị script inference chuẩn từ checkpoint model local
-- cho Airflow gọi inference step
-- dựng FastAPI để serving model
-- hoàn thiện pipeline end-to-end cho đồ án IE212
+## 22. Bước tiếp theo
 
-## 21. Mục đích project
+Roadmap tiếp theo hợp lý:
+
+- dựng FastAPI để expose prediction mới nhất
+- tạo endpoint đọc prediction từ PostgreSQL
+- chuẩn bị lớp demo cho đồ án
+- cân nhắc nối inference input với processed data thay vì raw CSV cục bộ
+- làm dashboard hoặc UI đơn giản để trình diễn
+
+## 23. Mục đích project
 
 Project phục vụ:
 
 - tái hiện và cải tiến bài toán dự đoán giá cổ phiếu bằng mô hình hybrid temporal-relational
 - triển khai pipeline Big Data end-to-end cho đồ án môn IE212
-- làm nền tảng để tích hợp Spark, Kafka, Airflow, FastAPI và model serving trong các bước tiếp theo
+- chứng minh được cả:
+  - data pipeline
+  - model checkpoint pipeline
+  - inference pipeline
+  - orchestration pipeline
+- làm nền tảng để tích hợp FastAPI và demo hệ thống hoàn chỉnh

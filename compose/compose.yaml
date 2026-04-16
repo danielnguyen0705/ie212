@@ -224,6 +224,13 @@ services:
 
       IE212_PARQUET_LOCAL_DIR: ${IE212_PARQUET_LOCAL_DIR}
       IE212_SPARK_PARQUET_DIRNAME: ${IE212_SPARK_PARQUET_DIRNAME}
+
+      IE212_ML_RUNNER_CONTAINER: ${IE212_ML_RUNNER_CONTAINER}
+      IE212_MODEL_CHECKPOINT: ${IE212_MODEL_CHECKPOINT}
+      IE212_MODEL_NAME: ${IE212_MODEL_NAME}
+      IE212_INFERENCE_RAW_DIR: ${IE212_INFERENCE_RAW_DIR}
+      IE212_INFERENCE_BUNDLE_PATH: ${IE212_INFERENCE_BUNDLE_PATH}
+      IE212_INFERENCE_OUTPUT_JSON: ${IE212_INFERENCE_OUTPUT_JSON}
     command: api-server
     ports:
       - "${AIRFLOW_PORT}:8080"
@@ -234,6 +241,8 @@ services:
       - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
       - ../services/spark/out:/opt/airflow/shared/spark_out
       - /var/run/docker.sock:/var/run/docker.sock
+      - ../scripts:/opt/airflow/project_scripts:ro
+      - ../outputs:/opt/airflow/project_outputs
     networks:
       - bigdata_net
 
@@ -277,6 +286,13 @@ services:
 
       IE212_PARQUET_LOCAL_DIR: ${IE212_PARQUET_LOCAL_DIR}
       IE212_SPARK_PARQUET_DIRNAME: ${IE212_SPARK_PARQUET_DIRNAME}
+
+      IE212_ML_RUNNER_CONTAINER: ${IE212_ML_RUNNER_CONTAINER}
+      IE212_MODEL_CHECKPOINT: ${IE212_MODEL_CHECKPOINT}
+      IE212_MODEL_NAME: ${IE212_MODEL_NAME}
+      IE212_INFERENCE_RAW_DIR: ${IE212_INFERENCE_RAW_DIR}
+      IE212_INFERENCE_BUNDLE_PATH: ${IE212_INFERENCE_BUNDLE_PATH}
+      IE212_INFERENCE_OUTPUT_JSON: ${IE212_INFERENCE_OUTPUT_JSON}
     command: scheduler
     volumes:
       - ../airflow/dags:/opt/airflow/dags
@@ -285,7 +301,8 @@ services:
       - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
       - ../services/spark/out:/opt/airflow/shared/spark_out
       - /var/run/docker.sock:/var/run/docker.sock
-
+      - ../scripts:/opt/airflow/project_scripts:ro
+      - ../outputs:/opt/airflow/project_outputs
     networks:
       - bigdata_net
 
@@ -331,6 +348,13 @@ services:
 
       IE212_PARQUET_LOCAL_DIR: ${IE212_PARQUET_LOCAL_DIR}
       IE212_SPARK_PARQUET_DIRNAME: ${IE212_SPARK_PARQUET_DIRNAME}
+
+      IE212_ML_RUNNER_CONTAINER: ${IE212_ML_RUNNER_CONTAINER}
+      IE212_MODEL_CHECKPOINT: ${IE212_MODEL_CHECKPOINT}
+      IE212_MODEL_NAME: ${IE212_MODEL_NAME}
+      IE212_INFERENCE_RAW_DIR: ${IE212_INFERENCE_RAW_DIR}
+      IE212_INFERENCE_BUNDLE_PATH: ${IE212_INFERENCE_BUNDLE_PATH}
+      IE212_INFERENCE_OUTPUT_JSON: ${IE212_INFERENCE_OUTPUT_JSON}
     command: dag-processor
     volumes:
       - ../airflow/dags:/opt/airflow/dags
@@ -339,6 +363,8 @@ services:
       - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
       - ../services/spark/out:/opt/airflow/shared/spark_out
       - /var/run/docker.sock:/var/run/docker.sock
+      - ../scripts:/opt/airflow/project_scripts:ro
+      - ../outputs:/opt/airflow/project_outputs
     networks:
       - bigdata_net
 
@@ -384,6 +410,13 @@ services:
 
       IE212_PARQUET_LOCAL_DIR: ${IE212_PARQUET_LOCAL_DIR}
       IE212_SPARK_PARQUET_DIRNAME: ${IE212_SPARK_PARQUET_DIRNAME}
+
+      IE212_ML_RUNNER_CONTAINER: ${IE212_ML_RUNNER_CONTAINER}
+      IE212_MODEL_CHECKPOINT: ${IE212_MODEL_CHECKPOINT}
+      IE212_MODEL_NAME: ${IE212_MODEL_NAME}
+      IE212_INFERENCE_RAW_DIR: ${IE212_INFERENCE_RAW_DIR}
+      IE212_INFERENCE_BUNDLE_PATH: ${IE212_INFERENCE_BUNDLE_PATH}
+      IE212_INFERENCE_OUTPUT_JSON: ${IE212_INFERENCE_OUTPUT_JSON}
     command: triggerer
     volumes:
       - ../airflow/dags:/opt/airflow/dags
@@ -392,6 +425,21 @@ services:
       - ../services/spark/jobs:/opt/airflow/spark_jobs:ro
       - ../services/spark/out:/opt/airflow/shared/spark_out
       - /var/run/docker.sock:/var/run/docker.sock
+      - ../scripts:/opt/airflow/project_scripts:ro
+      - ../outputs:/opt/airflow/project_outputs
+    networks:
+      - bigdata_net
+
+  ml-infer:
+    build:
+      context: ..
+      dockerfile: services/inference/Dockerfile
+    container_name: ie212-ml-infer
+    restart: unless-stopped
+    working_dir: /workspace
+    command: tail -f /dev/null
+    volumes:
+      - ..:/workspace
     networks:
       - bigdata_net
 

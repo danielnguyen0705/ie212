@@ -1,0 +1,86 @@
+{
+  "checkpoint": "/workspace/models/hybrid_expanding_best_full.pt",
+  "input_npz": "/workspace/data/inference/latest_window.npz",
+  "as_of_date": "2023-12-29",
+  "device": "cpu",
+  "model_dims": {
+    "seq_input_dim": 1,
+    "node_input_dim": 7,
+    "lstm_hidden": 64,
+    "gnn_hidden": 32,
+    "mlp_hidden": 64
+  },
+  "num_nodes": 10,
+  "predictions": [
+    {
+      "ticker": "AAPL",
+      "last_close": 192.52999877929688,
+      "pred_close": 192.52574157714844,
+      "pred_return": -2.2111889967431326e-05,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "ADBE",
+      "last_close": 596.5999755859375,
+      "pred_close": 596.5957641601562,
+      "pred_return": -7.059044508196369e-06,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "AMD",
+      "last_close": 147.41000366210938,
+      "pred_close": 147.4057159423828,
+      "pred_return": -2.9087033580100412e-05,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "CMCSA",
+      "last_close": 41.09653091430664,
+      "pred_close": 41.09408950805664,
+      "pred_return": -5.940662619652139e-05,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "COST",
+      "last_close": 660.0800170898438,
+      "pred_close": 660.0758056640625,
+      "pred_return": -6.3801746337016915e-06,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "INTC",
+      "last_close": 50.25,
+      "pred_close": 50.246986389160156,
+      "pred_return": -5.997235502176617e-05,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "INTU",
+      "last_close": 625.030029296875,
+      "pred_close": 625.0258178710938,
+      "pred_return": -6.737957512197656e-06,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "MSFT",
+      "last_close": 376.0400085449219,
+      "pred_close": 376.0357971191406,
+      "pred_return": -1.1199408801063522e-05,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "QCOM",
+      "last_close": 144.6300048828125,
+      "pred_close": 144.62571716308594,
+      "pred_return": -2.9646128616511183e-05,
+      "graph_gate": 0.0
+    },
+    {
+      "ticker": "SBUX",
+      "last_close": 96.01000213623047,
+      "pred_close": 96.00579833984375,
+      "pred_return": -4.378498378485505e-05,
+      "graph_gate": 0.0
+    }
+  ]
+}
