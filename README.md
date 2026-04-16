@@ -209,6 +209,7 @@ IE212/
 │   └── test_prepare_step.py
 ├── src/
 ├── .gitignore
+├── frontend_api_handoff.md
 ├── README.md
 └── requirements.txt
 ```
@@ -231,6 +232,7 @@ IE212/
 - `services/api/static/index.html`: dashboard web để demo prediction và recent runs
 - `services/api/requirements.api.txt`: dependency cho FastAPI service
 - `services/api/Dockerfile`: image API dùng để build container `ie212-fastapi`
+- `frontend_api_handoff.md`: tài liệu bàn giao REST API cho frontend team phát triển dashboard mới
 - `airflow/dags/`: các DAG orchestration
 - `airflow/logs/`: log của Airflow
 - `airflow/plugins/`: plugin Airflow nếu cần mở rộng
@@ -726,6 +728,21 @@ Ghi chú:
 - Dashboard hiện tại được chốt là bản giao diện demo cuối.
 - Mục tiêu dashboard là minh họa luồng end-to-end: Airflow orchestration -> model inference -> lưu prediction vào PostgreSQL -> FastAPI phục vụ dữ liệu -> dashboard hiển thị kết quả.
 - Nhóm chưa triển khai chart lịch sử 1 tháng để tránh mở rộng phạm vi frontend quá mức ở giai đoạn hiện tại.
+
+### Frontend handoff
+
+Project hiện có thêm tài liệu bàn giao riêng cho frontend team:
+
+- `frontend_api_handoff.md`
+
+Tài liệu này mô tả:
+
+- base URL và Swagger docs
+- mapping API theo từng màn hình frontend
+- contract của các endpoint chính
+- ví dụ request/response JSON
+- gợi ý type dữ liệu cho frontend
+- khuyến nghị xử lý loading, empty state và error state
 
 ## 17. Airflow setup
 

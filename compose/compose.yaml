@@ -460,6 +460,9 @@ services:
       IE212_API_POSTGRES_PASSWORD: ${IE212_API_POSTGRES_PASSWORD}
     ports:
       - "${IE212_API_PORT}:8000"
+    volumes:
+      - ../services/api:/app/services/api
+      - ../data:/app/data:ro
     networks:
       - bigdata_net
 

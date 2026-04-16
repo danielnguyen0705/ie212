@@ -25,9 +25,7 @@
       --sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
@@ -40,9 +38,7 @@
       font-family: var(--sans);
     }
 
-    body {
-      padding: 28px;
-    }
+    body { padding: 28px; }
 
     .container {
       max-width: 1480px;
@@ -121,9 +117,7 @@
       white-space: nowrap;
     }
 
-    .btn:hover {
-      transform: translateY(-1px);
-    }
+    .btn:hover { transform: translateY(-1px); }
 
     .btn.primary {
       background: linear-gradient(135deg, #3b82f6, #2563eb);
@@ -223,9 +217,7 @@
       overflow: hidden;
     }
 
-    .section {
-      padding: 18px 18px 14px;
-    }
+    .section { padding: 18px 18px 14px; }
 
     .section-header {
       display: flex;
@@ -318,26 +310,16 @@
       font-size: 0.95rem;
     }
 
-    tbody tr:hover {
-      background: #fafcff;
-    }
+    tbody tr:hover { background: #fafcff; }
 
     .ticker {
       font-weight: 800;
       letter-spacing: 0.02em;
     }
 
-    .mono {
-      font-family: var(--mono);
-    }
-
-    .nowrap {
-      white-space: nowrap;
-    }
-
-    .dim {
-      color: var(--muted);
-    }
+    .mono { font-family: var(--mono); }
+    .nowrap { white-space: nowrap; }
+    .dim { color: var(--muted); }
 
     .positive {
       color: var(--success);
@@ -498,46 +480,26 @@
     }
 
     @media (max-width: 1150px) {
-      .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .content-grid {
-        grid-template-columns: 1fr;
-      }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .content-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 760px) {
-      body {
-        padding: 16px;
-      }
+      body { padding: 16px; }
 
-      .header-left h1 {
-        font-size: 1.7rem;
-      }
+      .header-left h1 { font-size: 1.7rem; }
 
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
+      .stats-grid { grid-template-columns: 1fr; }
 
-      .header-right {
-        width: 100%;
-      }
+      .header-right { width: 100%; }
 
-      .btn {
-        flex: 1 1 auto;
-      }
+      .btn { flex: 1 1 auto; }
 
-      .section {
-        padding: 16px;
-      }
+      .section { padding: 16px; }
 
-      .filter-row {
-        align-items: stretch;
-      }
+      .filter-row { align-items: stretch; }
 
-      .search {
-        width: 100%;
-      }
+      .search { width: 100%; }
     }
   </style>
 </head>
@@ -547,8 +509,8 @@
       <div class="header-left">
         <h1>IE212 Stock Prediction Dashboard</h1>
         <p>
-          Dashboard đọc dữ liệu dự đoán mới nhất từ PostgreSQL thông qua FastAPI.
-          Hỗ trợ xem latest run, tra cứu các run gần đây, lọc ticker và tổng hợp nhanh kết quả suy luận.
+          Demo cơ bản đọc dữ liệu dự đoán mới nhất từ PostgreSQL thông qua FastAPI.
+          Hỗ trợ xem latest run, recent runs, lọc ticker và tổng hợp nhanh kết quả suy luận.
         </p>
       </div>
 
@@ -587,7 +549,7 @@
           <div class="stat-label">As Of Date</div>
           <div id="asOfDate" class="stat-value">—</div>
         </div>
-        <div class="stat-sub">Ngày cuối cùng của bundle inference hiện tại.</div>
+        <div class="stat-sub">Ngày dữ liệu dự báo của latest run.</div>
       </div>
 
       <div class="stat-card">
@@ -649,13 +611,23 @@
 
           <div class="summary-grid">
             <div class="summary-item">
-              <div class="label">First Created</div>
-              <div id="firstCreated" class="value">—</div>
+              <div class="label">Latest Run</div>
+              <div id="summaryLatestRun" class="value mono">—</div>
             </div>
 
             <div class="summary-item">
-              <div class="label">Last Created</div>
-              <div id="lastCreated" class="value">—</div>
+              <div class="label">Ticker Count</div>
+              <div id="summaryTickerCount" class="value">—</div>
+            </div>
+
+            <div class="summary-item">
+              <div class="label">Avg Pred Return</div>
+              <div id="summaryAvgReturn" class="value">—</div>
+            </div>
+
+            <div class="summary-item">
+              <div class="label">Last Updated</div>
+              <div id="summaryLastUpdated" class="value">—</div>
             </div>
 
             <div class="summary-item">
@@ -790,7 +762,6 @@
       tableBody.innerHTML = filtered.map(item => {
         const delta = Number(item.pred_close) - Number(item.last_close);
         const deltaClass = signedClass(delta);
-        const returnClass = signedClass(item.pred_return);
 
         return `
           <tr>
@@ -798,7 +769,7 @@
             <td class="mono nowrap">${formatNumber(item.last_close, 4)}</td>
             <td class="mono nowrap">${formatNumber(item.pred_close, 4)}</td>
             <td class="${deltaClass} mono nowrap">${delta > 0 ? "+" : ""}${formatNumber(delta, 6)}</td>
-            <td class="${returnClass}">${pillForReturn(item.pred_return)}</td>
+            <td>${pillForReturn(item.pred_return)}</td>
             <td class="mono nowrap">${formatNumber(item.graph_gate, 4)}</td>
             <td class="dim">${formatDateTime(item.created_at)}</td>
           </tr>
@@ -806,30 +777,26 @@
       }).join("");
     }
 
-    function renderSummary(data) {
-      document.getElementById("rowCount").textContent = data.length;
-
+    function renderPredictionSummary(data) {
       if (!data.length) {
-        document.getElementById("firstCreated").textContent = "—";
-        document.getElementById("lastCreated").textContent = "—";
         document.getElementById("topPositive").textContent = "—";
         document.getElementById("topNegative").textContent = "—";
         return;
       }
 
-      const sortedByCreated = [...data].sort(
-        (a, b) => new Date(a.created_at) - new Date(b.created_at)
-      );
+      const validReturns = data.filter(x => x.pred_return !== null && x.pred_return !== undefined);
+      if (!validReturns.length) {
+        document.getElementById("topPositive").textContent = "—";
+        document.getElementById("topNegative").textContent = "—";
+        return;
+      }
 
-      const sortedByReturn = [...data].sort(
+      const sortedByReturn = [...validReturns].sort(
         (a, b) => Number(b.pred_return) - Number(a.pred_return)
       );
 
       const topPositive = sortedByReturn[0];
       const topNegative = sortedByReturn[sortedByReturn.length - 1];
-
-      document.getElementById("firstCreated").textContent = formatDateTime(sortedByCreated[0].created_at);
-      document.getElementById("lastCreated").textContent = formatDateTime(sortedByCreated[sortedByCreated.length - 1].created_at);
 
       document.getElementById("topPositive").innerHTML =
         `<span class="${signedClass(topPositive.pred_return)}">${escapeHtml(topPositive.ticker)} (${formatPct(topPositive.pred_return)})</span>`;
@@ -845,10 +812,10 @@
       }
 
       recentRunsEl.innerHTML = runs.map(run => {
-        const isActive = run.prediction_run_id === currentRunId ? "active" : "";
+        const isActive = run.run_id === currentRunId ? "active" : "";
         return `
-          <div class="run-card ${isActive}" data-run-id="${escapeHtml(run.prediction_run_id)}">
-            <div class="run-title">${escapeHtml(run.prediction_run_id)}</div>
+          <div class="run-card ${isActive}" data-run-id="${escapeHtml(run.run_id)}">
+            <div class="run-title">${escapeHtml(run.run_id)}</div>
             <div class="run-meta">
               model=${escapeHtml(run.model_name)} | as_of_date=${escapeHtml(run.as_of_date)} | rows=${escapeHtml(run.row_count)}<br/>
               first_created=${formatDateTime(run.first_created_at)}<br/>
@@ -868,11 +835,26 @@
       });
     }
 
+    async function loadDashboardSummary() {
+      try {
+        const summary = await fetchJson("/dashboard/summary");
+
+        document.getElementById("summaryLatestRun").textContent = summary.latest_run_id || "—";
+        document.getElementById("summaryTickerCount").textContent = summary.ticker_count ?? "—";
+        document.getElementById("summaryAvgReturn").textContent = formatPct(summary.avg_pred_return);
+        document.getElementById("summaryLastUpdated").textContent = formatDateTime(summary.last_updated);
+      } catch (err) {
+        document.getElementById("summaryLatestRun").textContent = "—";
+        document.getElementById("summaryTickerCount").textContent = "—";
+        document.getElementById("summaryAvgReturn").textContent = "—";
+        document.getElementById("summaryLastUpdated").textContent = "—";
+      }
+    }
+
     async function loadRecentRuns() {
       try {
         const data = await fetchJson("/predictions/runs/recent");
-        const items = data.items || [];
-        renderRecentRuns(items);
+        renderRecentRuns(data.items || []);
       } catch (err) {
         recentRunsEl.innerHTML = `<div class="error-box">Không tải được recent runs: ${escapeHtml(err.message)}</div>`;
       }
@@ -880,11 +862,11 @@
 
     async function loadLatestRun() {
       try {
-        const meta = await fetchJson("/predictions/runs/latest");
-        if (!meta || !meta.prediction_run_id) {
+        const data = await fetchJson("/predictions/runs/latest");
+        if (!data || !data.run_id) {
           throw new Error("Không tìm thấy latest run.");
         }
-        await loadRunById(meta.prediction_run_id);
+        await loadRunById(data.run_id);
       } catch (err) {
         tableBody.innerHTML = `
           <tr>
@@ -897,7 +879,6 @@
 
     async function loadRunById(runId) {
       currentRunId = runId;
-
       document.getElementById("latestRunId").textContent = runId || "—";
 
       tableBody.innerHTML = `
@@ -909,29 +890,16 @@
 
       try {
         const data = await fetchJson(`/predictions/runs/${encodeURIComponent(runId)}`);
-
-        // FIX: endpoint trả object có field items, không phải array trực tiếp
-        const items = Array.isArray(data) ? data : (data.items || []);
-
-        if (!items.length) {
-          currentPredictions = [];
-          document.getElementById("modelName").textContent = "—";
-          document.getElementById("asOfDate").textContent = "—";
-          document.getElementById("rowCount").textContent = "0";
-          renderTable([]);
-          renderSummary([]);
-          await loadRecentRuns();
-          return;
-        }
+        const items = Array.isArray(data.items) ? data.items : [];
 
         currentPredictions = items;
 
-        document.getElementById("modelName").textContent = items[0].model_name || "—";
-        document.getElementById("asOfDate").textContent = items[0].as_of_date || "—";
-        document.getElementById("rowCount").textContent = items.length;
+        document.getElementById("modelName").textContent = data.model_name || "—";
+        document.getElementById("asOfDate").textContent = data.as_of_date || "—";
+        document.getElementById("rowCount").textContent = data.row_count ?? items.length ?? 0;
 
         renderTable(items);
-        renderSummary(items);
+        renderPredictionSummary(items);
         await loadRecentRuns();
       } catch (err) {
         currentPredictions = [];
@@ -946,12 +914,14 @@
 
     async function init() {
       await checkHealth();
+      await loadDashboardSummary();
       await loadLatestRun();
       await loadRecentRuns();
     }
 
     refreshBtn.addEventListener("click", async () => {
       await checkHealth();
+      await loadDashboardSummary();
       if (currentRunId) {
         await loadRunById(currentRunId);
       } else {
