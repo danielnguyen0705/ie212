@@ -113,6 +113,26 @@ Project hiện được triển khai theo 2 giai đoạn chính:
 - custom Airflow image có Docker CLI đã build thành công
 - custom ML inference runner image đã build thành công với `torch CPU`
 
+#### Dashboard / Demo UI phase
+
+- dựng thành công FastAPI service để phục vụ dữ liệu prediction từ PostgreSQL
+- truy cập được API docs tại `http://localhost:8008/docs`
+- truy cập được dashboard tại `http://localhost:8008/dashboard`
+- dashboard hiển thị thành công:
+  - Latest Run ID
+  - Model Name
+  - As Of Date
+  - Row Count
+  - bảng prediction theo ticker
+  - Run Summary
+  - Recent Runs
+- dashboard hỗ trợ:
+  - refresh dữ liệu
+  - copy run id
+  - filter ticker
+  - xem lại các run gần đây
+- giao diện hiện tại được chốt làm bản demo cuối cho đồ án
+
 ---
 
 ## 3. Cấu trúc thư mục hiện tại
@@ -138,6 +158,26 @@ IE212/
 │   └── postgres/
 │       └── init/
 │           └── 001_init.sql
+├── services/
+│   ├── api/
+│   │   ├── Dockerfile
+│   │   ├── requirements.api.txt
+│   │   ├── main.py
+│   │   └── static/
+│   │       └── index.html
+│   ├── spark/
+│   │   ├── jobs/
+│   │   │   ├── simple_spark_check.py
+│   │   │   ├── read_kafka_batch.py
+│   │   │   ├── read_kafka_stream.py
+│   │   │   ├── write_kafka_stream_to_postgres.py
+│   │   │   ├── write_kafka_batch_to_parquet.py
+│   │   │   └── write_kafka_batch_to_postgres.py
+│   │   └── out/
+│   │       └── kafka_ticks_parquet/
+│   └── inference/
+│       ├── Dockerfile
+│       └── requirements.infer.txt
 ├── data/
 │   ├── raw/
 │   ├── processed/
@@ -163,20 +203,6 @@ IE212/
 │   ├── test_load_checkpoint.py
 │   ├── test_model_forward.py
 │   └── test_prepare_step.py
-├── services/
-│   ├── spark/
-│   │   ├── jobs/
-│   │   │   ├── simple_spark_check.py
-│   │   │   ├── read_kafka_batch.py
-│   │   │   ├── read_kafka_stream.py
-│   │   │   ├── write_kafka_stream_to_postgres.py
-│   │   │   ├── write_kafka_batch_to_parquet.py
-│   │   │   └── write_kafka_batch_to_postgres.py
-│   │   └── out/
-│   │       └── kafka_ticks_parquet/
-│   └── inference/
-│       ├── Dockerfile
-│       └── requirements.infer.txt
 ├── src/
 ├── .gitignore
 ├── README.md
@@ -197,6 +223,10 @@ IE212/
 - `services/spark/jobs/`: các Spark jobs để test và xử lý dữ liệu
 - `services/spark/out/`: output local của Spark trước khi upload MinIO
 - `services/inference/`: Dockerfile và requirements cho container ML inference
+- `services/api/main.py`: mã nguồn FastAPI để đọc prediction từ PostgreSQL
+- `services/api/static/index.html`: dashboard web để demo prediction và recent runs
+- `services/api/requirements.api.txt`: dependency cho FastAPI service
+- `services/api/Dockerfile`: image API dùng để build container `ie212-fastapi`
 - `airflow/dags/`: các DAG orchestration
 - `airflow/logs/`: log của Airflow
 - `airflow/plugins/`: plugin Airflow nếu cần mở rộng
@@ -253,19 +283,13 @@ python -m scripts.inspect_checkpoint --checkpoint models\lstm_expanding_best_ful
 
 ### 7.1 Build inference bundle
 
-Script:
-
-- `scripts/build_latest_inference_bundle.py`
+Script: `scripts/build_latest_inference_bundle.py`
 
 Chức năng:
 
 - đọc dữ liệu từ `data/raw/*.csv`
 - intersect ngày giao dịch chung giữa các ticker
-- build tensor:
-  - `X_seq`
-  - `X_node`
-  - `A`
-  - `last_close`
+- build tensor: `X_seq`, `X_node`, `A`, `last_close`
 - lưu bundle ra `data/inference/latest_window.npz`
 
 Lệnh chạy:
@@ -276,9 +300,7 @@ python -m scripts.build_latest_inference_bundle --data-dir data\raw --output dat
 
 ### 7.2 Chạy checkpoint inference
 
-Script:
-
-- `scripts/run_checkpoint_inference.py`
+Script: `scripts/run_checkpoint_inference.py`
 
 Chức năng:
 
@@ -295,9 +317,7 @@ python -m scripts.run_checkpoint_inference --checkpoint models\hybrid_expanding_
 
 ### 7.3 Lưu prediction JSON vào PostgreSQL
 
-Script:
-
-- `scripts/save_inference_to_postgres.py`
+Script: `scripts/save_inference_to_postgres.py`
 
 Chức năng:
 
@@ -343,7 +363,7 @@ python -m scripts.save_inference_to_postgres --input-json outputs\inference\late
 
 Hiện tại project đã gom các biến dùng chung vào `compose/.env` để giảm hard-code trong DAG.
 
-PostgreSQL:
+### PostgreSQL
 
 ```env
 POSTGRES_DB=stock_project
@@ -352,27 +372,27 @@ POSTGRES_PASSWORD=change_me_postgres
 POSTGRES_PORT=5432
 ```
 
-MinIO:
+### MinIO
 
 ```env
 MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=change_me_minio
 ```
 
-Kafka:
+### Kafka
 
 ```env
 KAFKA_TOPIC_STOCK_PRICE=stock-price
 ```
 
-Airflow:
+### Airflow
 
 ```env
 AIRFLOW_ADMIN_USER=airflow
 AIRFLOW_ADMIN_PASSWORD=airflow
 ```
 
-IE212 runtime vars:
+### IE212 runtime vars
 
 ```env
 IE212_POSTGRES_HOST=postgres
@@ -408,6 +428,18 @@ IE212_INFERENCE_BUNDLE_PATH=/workspace/data/inference/latest_window.npz
 IE212_INFERENCE_OUTPUT_JSON=/workspace/outputs/inference/latest_prediction.json
 ```
 
+### FastAPI
+
+```env
+IE212_API_CONTAINER=ie212-fastapi
+IE212_API_PORT=8008
+IE212_API_POSTGRES_HOST=postgres
+IE212_API_POSTGRES_PORT=5432
+IE212_API_POSTGRES_DB=stock_project
+IE212_API_POSTGRES_USER=stock_user
+IE212_API_POSTGRES_PASSWORD=change_me_postgres
+```
+
 ## 10. Cách chạy toàn bộ system
 
 Vào thư mục compose:
@@ -432,6 +464,12 @@ Build và chạy ML inference runner:
 
 ```bash
 docker compose up -d --build ml-infer
+```
+
+### Build và chạy FastAPI dashboard service
+
+```powershell
+docker compose up -d --build fastapi
 ```
 
 Kiểm tra trạng thái:
@@ -495,12 +533,7 @@ Mở UI:
 http://localhost:9001
 ```
 
-Bucket hiện có:
-
-- `raw`
-- `processed`
-- `models`
-- `artifacts`
+Bucket hiện có: `raw`, `processed`, `models`, `artifacts`.
 
 Kiểm tra object Parquet: vào bucket `processed` và kiểm tra thư mục chứa output Parquet.
 
@@ -534,14 +567,6 @@ Producer:
 
 ```bash
 docker exec -it ie212-kafka /opt/kafka/bin/kafka-console-producer.sh --topic stock-price --bootstrap-server localhost:9092
-```
-
-Ví dụ:
-
-```json
-{"symbol":"AAPL","price":210.15}
-{"symbol":"MSFT","price":438.20}
-{"symbol":"AMD","price":167.05}
 ```
 
 Consumer:
@@ -609,9 +634,7 @@ docker exec -it ie212-spark-master /opt/spark/bin/spark-submit --master spark://
 
 ## 16. ML inference runner
 
-Service:
-
-- `ie212-ml-infer`
+Service: `ie212-ml-infer`
 
 Chức năng:
 
@@ -626,6 +649,79 @@ docker exec -it ie212-ml-infer python -c "import torch, pandas, numpy, psycopg2;
 ```
 
 Kỳ vọng: in ra version kiểu `2.11.0+cpu`.
+
+## 16A. FastAPI + Dashboard
+
+Service:
+
+- `ie212-fastapi`
+
+Chức năng:
+
+- đọc dữ liệu từ bảng `stock.inference_predictions`
+- expose API để lấy latest run, latest predictions và recent runs
+- phục vụ dashboard web để demo kết quả mô hình
+
+### Build và chạy FastAPI
+
+Trong thư mục `compose/`:
+
+```powershell
+docker compose up -d --build fastapi
+docker compose ps
+```
+
+### Các endpoint chính
+
+`GET /`
+
+- trả về metadata service và danh sách endpoint
+
+`GET /health`
+
+- kiểm tra FastAPI còn sống
+- kiểm tra kết nối PostgreSQL
+- kiểm tra bảng `stock.inference_predictions` tồn tại
+
+`GET /predictions/runs/latest`
+
+- trả về `prediction_run_id`, `as_of_date`, `model_name`, `row_count`, `first_created_at`, `last_created_at`
+
+`GET /predictions/runs/recent`
+
+- trả về danh sách run prediction gần đây để dashboard hiển thị
+
+`GET /predictions/latest`
+
+- trả về batch prediction mới nhất
+
+`GET /predictions/runs/{run_id}`
+
+- trả về toàn bộ prediction thuộc một run cụ thể
+
+Swagger UI: `http://localhost:8008/docs`
+
+Dashboard UI: `http://localhost:8008/dashboard`
+
+### Chức năng dashboard hiện tại
+
+- hiển thị Latest Run ID
+- hiển thị Model Name
+- hiển thị As Of Date
+- hiển thị Row Count
+- hiển thị bảng prediction theo ticker
+- hiển thị Run Summary
+- hiển thị Recent Runs
+- filter ticker
+- refresh dữ liệu
+- copy run id
+- mở API docs trực tiếp từ dashboard
+
+Ghi chú:
+
+- Dashboard hiện tại được chốt là bản giao diện demo cuối.
+- Mục tiêu dashboard là minh họa luồng end-to-end: Airflow orchestration -> model inference -> lưu prediction vào PostgreSQL -> FastAPI phục vụ dữ liệu -> dashboard hiển thị kết quả.
+- Nhóm chưa triển khai chart lịch sử 1 tháng để tránh mở rộng phạm vi frontend quá mức ở giai đoạn hiện tại.
 
 ## 17. Airflow setup
 
@@ -663,14 +759,10 @@ http://localhost:8088
 
 ### 18.1 ie212_smoke_test
 
-Chức năng:
-
 - smoke test Airflow stack
 - kiểm tra task đơn giản chạy được
 
 ### 18.2 ie212_data_pipeline
-
-Chức năng:
 
 - tạo/đảm bảo bảng audit
 - kiểm tra Kafka
@@ -681,15 +773,11 @@ Chức năng:
 
 ### 18.3 ie212_full_validation_pipeline
 
-Chức năng:
-
 - kiểm tra Kafka, Spark, MinIO, PostgreSQL
 - kiểm tra local Parquet output
 - ghi audit đầy đủ hơn vào `stock.pipeline_audit`
 
 ### 18.4 ie212_spark_exec_pipeline
-
-Chức năng:
 
 - gọi Spark batch job ghi PostgreSQL
 - kiểm tra bảng `stock.kafka_ticks_batch`
@@ -700,26 +788,18 @@ Chức năng:
 
 ### 18.5 ie212_inference_ingest_pipeline
 
-Chức năng:
-
 - ingest `outputs/inference/latest_prediction.json`
 - lưu prediction vào `stock.inference_predictions`
 - validate bảng prediction
 
 ### 18.6 ie212_end_to_end_inference_pipeline
 
-Chức năng:
-
 - build `latest_window.npz`
 - chạy checkpoint inference
 - lưu prediction vào PostgreSQL
 - validate kết quả cuối
 
-Đây là DAG end-to-end inference hoàn chỉnh hiện tại.
-
 ### 18.7 ie212_settings
-
-Chức năng:
 
 - đọc biến môi trường IE212
 - tạo PostgreSQL connection helper
@@ -767,6 +847,17 @@ Chức năng:
 - `ie212_inference_ingest_pipeline` thành công
 - `ie212_end_to_end_inference_pipeline` thành công
 
+### API / Dashboard
+
+- FastAPI service chạy ổn trên port 8008
+- endpoint `/health` trả về trạng thái OK
+- endpoint `/predictions/runs/latest` trả về run mới nhất
+- endpoint `/predictions/runs/recent` trả về danh sách recent runs
+- endpoint `/predictions/latest` trả về batch prediction mới nhất
+- Swagger UI mở được tại `/docs`
+- Dashboard UI mở được tại `/dashboard`
+- Dashboard hiển thị đúng latest prediction run và các bản ghi recent runs
+
 ### Database evidence
 
 - `stock.kafka_ticks_batch` có dữ liệu
@@ -792,6 +883,7 @@ cd compose
 docker compose up -d
 docker compose --profile manual up -d minio-client
 docker compose up -d --build ml-infer
+docker compose up -d --build fastapi
 docker compose ps
 ```
 
@@ -811,13 +903,15 @@ docker compose logs airflow-apiserver --tail=200
 docker compose logs airflow-scheduler --tail=200
 ```
 
-UI:
+### UI
 
 ```text
 MinIO: http://localhost:9001
 Spark Master: http://localhost:8080
 Spark Worker: http://localhost:8081
 Airflow: http://localhost:8088
+FastAPI Docs: http://localhost:8008/docs
+Dashboard: http://localhost:8008/dashboard
 ```
 
 ## 21. Ghi chú
@@ -831,13 +925,44 @@ Airflow: http://localhost:8088
 
 Roadmap tiếp theo hợp lý:
 
-- dựng FastAPI để expose prediction mới nhất
-- tạo endpoint đọc prediction từ PostgreSQL
-- chuẩn bị lớp demo cho đồ án
-- cân nhắc nối inference input với processed data thay vì raw CSV cục bộ
-- làm dashboard hoặc UI đơn giản để trình diễn
+1. hoàn thiện slide và demo script cho buổi báo cáo
+2. chụp ảnh các màn hình chính:
+   - Airflow DAG success
+   - FastAPI docs
+   - dashboard
+   - PostgreSQL query result
+3. nếu còn thời gian:
+   - tinh chỉnh thêm dữ liệu hiển thị
+   - bổ sung ảnh dashboard vào README/report
+4. tập trung hoàn thiện phần báo cáo:
+   - kiến trúc hệ thống
+   - baseline model
+   - Graph Gate improvement
+   - expanding window evaluation
+   - end-to-end deployment
 
-## 23. Mục đích project
+## 23. Trạng thái chốt hiện tại
+
+Tại thời điểm hiện tại, project đã đạt được một pipeline end-to-end hoàn chỉnh cho đồ án IE212:
+
+- dữ liệu cổ phiếu lịch sử được xử lý cục bộ
+- checkpoint hybrid model được lưu và load lại thành công
+- inference được orchestration bằng Airflow
+- prediction được ghi vào PostgreSQL
+- FastAPI phục vụ dữ liệu prediction
+- dashboard hiển thị trực tiếp kết quả để demo
+
+Như vậy, hệ thống hiện đã bao gồm đầy đủ các lớp chính của một đồ án Big Data ứng dụng machine learning:
+
+- storage
+- streaming
+- processing
+- orchestration
+- inference
+- serving
+- demo UI
+
+## 24. Mục đích project
 
 Project phục vụ:
 

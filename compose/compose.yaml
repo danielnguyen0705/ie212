@@ -443,6 +443,26 @@ services:
     networks:
       - bigdata_net
 
+  fastapi:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    container_name: ie212-fastapi
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      IE212_API_POSTGRES_HOST: ${IE212_API_POSTGRES_HOST}
+      IE212_API_POSTGRES_PORT: ${IE212_API_POSTGRES_PORT}
+      IE212_API_POSTGRES_DB: ${IE212_API_POSTGRES_DB}
+      IE212_API_POSTGRES_USER: ${IE212_API_POSTGRES_USER}
+      IE212_API_POSTGRES_PASSWORD: ${IE212_API_POSTGRES_PASSWORD}
+    ports:
+      - "${IE212_API_PORT}:8000"
+    networks:
+      - bigdata_net
+
 volumes:
   postgres_data:
   minio_data:
