@@ -114,24 +114,24 @@ def check_postgres():
                 required_tables = {
                     "predictions",
                     "model_registry",
-                    "kafka_ticks",
+                    "kafka_ticks_batch",
                     "pipeline_audit",
                 }
                 missing_tables = sorted(list(required_tables - existing_tables))
 
-                cur.execute("SELECT COUNT(*) FROM stock.kafka_ticks;")
-                kafka_ticks_count = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM stock.kafka_ticks_batch;")
+                kafka_batch_count = cur.fetchone()[0]
 
         return {
             "postgres_ok": len(missing_tables) == 0,
-            "kafka_ticks_count": int(kafka_ticks_count),
+            "kafka_batch_count": int(kafka_batch_count),
             "missing_tables": missing_tables,
             "error": None,
         }
     except Exception as e:
         return {
             "postgres_ok": False,
-            "kafka_ticks_count": 0,
+            "kafka_batch_count": 0,
             "missing_tables": ["unknown"],
             "error": str(e),
         }
@@ -220,7 +220,7 @@ def write_audit(**context):
                         bool(minio_result.get("minio_ok", False)),
                         bool(postgres_result.get("postgres_ok", False)),
                         bool(parquet_result.get("parquet_local_ok", False)),
-                        int(postgres_result.get("kafka_ticks_count", 0)),
+                        int(postgres_result.get("kafka_batch_count", 0)),
                         int(parquet_result.get("parquet_files_count", 0)),
                         bool(parquet_result.get("has_success_marker", False)),
                         ",".join(postgres_result.get("missing_tables", [])),
@@ -257,8 +257,8 @@ def validate_pipeline(**context):
             f"PostgreSQL/table check failed: missing={postgres_result.get('missing_tables')}, error={postgres_result.get('error')}"
         )
 
-    if int(postgres_result.get("kafka_ticks_count", 0)) <= 0:
-        errors.append("stock.kafka_ticks currently has no rows")
+    if int(postgres_result.get("kafka_batch_count", 0)) <= 0:
+        errors.append("stock.kafka_ticks_batch currently has no rows")
 
     if not parquet_result.get("parquet_local_ok", False):
         errors.append(f"Parquet output check failed: {parquet_result.get('error')}")
@@ -272,7 +272,7 @@ def validate_pipeline(**context):
     if errors:
         raise ValueError(" | ".join(errors))
 
-    print("IE212 full validation pipeline passed.")
+    print("IE212 full validation pipeline passed for Kafka batch path.")
 
 
 with DAG(

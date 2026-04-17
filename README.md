@@ -2,26 +2,26 @@
 
 README này chỉ tập trung vào một mục tiêu: `chạy hệ thống theo đúng thứ tự, ít nhầm lẫn nhất`.
 
-## 1. Hệ thống gồm những gì?
-
-Luồng chính của project là:
+## 1. Luồng chính của hệ thống
 
 ```text
 yfinance hoặc data/raw CSV
 -> stock-producer
 -> Kafka topic stock-price
--> Spark
+-> Spark batch
 -> PostgreSQL / parquet
 -> MinIO / Airflow validation
 -> FastAPI dashboard
 ```
 
-Ý nghĩa của Kafka trong project:
+Ghi chú quan trọng:
 
-- Kafka là `lớp nhận dữ liệu đầu vào`
-- producer đẩy giá cổ phiếu vào topic `stock-price`
-- Spark đọc lại từ Kafka để xử lý
-- vì vậy Kafka không phải phần phụ, mà là mắt xích ở giữa pipeline Big Data
+- Với trạng thái hiện tại của project, `Kafka đang được dùng theo batch path`.
+- Luồng demo chính nên bám theo:
+  - `ie212_kafka_end_to_end_smoke_test`
+  - `ie212_spark_exec_pipeline`
+  - `ie212_data_pipeline`
+- Không nên lấy `stock.kafka_ticks` làm luồng demo chính nữa.
 
 ## 2. Cần mở gì trước khi chạy?
 
@@ -31,13 +31,9 @@ Bạn nên mở:
 - `Terminal 2`: để chạy lệnh local như train, producer, save inference
 - `Browser`: để mở Airflow / dashboard / docs
 
-Làm theo cách này sẽ dễ quan sát nhất.
-
 ## 3. Chuẩn bị môi trường
 
 ### 3.1. Clone và cài Python dependencies
-
-Chạy ở `Terminal 1` hoặc `Terminal 2` đều được:
 
 ```powershell
 git clone <repo-url>
@@ -57,24 +53,12 @@ Copy-Item compose\.env.example compose\.env
 
 ## 4. Chạy local ML trước
 
-Phần này nên chạy trước để có:
-
-- `data/raw/*.csv`
-- checkpoint model
-- inference JSON
-
 Chạy ở `Terminal 2`:
 
 ### 4.1. Tải dữ liệu raw
 
 ```powershell
 python scripts/run_train.py
-```
-
-Muốn tải lại toàn bộ:
-
-```powershell
-python scripts/run_train.py --refresh
 ```
 
 ### 4.2. Train model
@@ -107,16 +91,8 @@ docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
 
 ### 5.2. Start toàn bộ stack
 
-Nếu bạn muốn chạy luôn cả producer trong Docker:
-
 ```powershell
 docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
-```
-
-Nếu bạn chưa muốn chạy producer Docker:
-
-```powershell
-docker compose --env-file compose/.env -f compose/compose.yaml up -d --build
 ```
 
 ## 6. Mở các địa chỉ cần thiết
@@ -130,31 +106,52 @@ Mở ở `Browser`:
 - Spark Worker UI: [http://localhost:8081](http://localhost:8081)
 - MinIO Console: [http://localhost:9001](http://localhost:9001)
 
-### Đăng nhập Airflow
+## 7. Đăng nhập Airflow
 
-Airflow có yêu cầu tài khoản.
+Airflow hiện dùng `SimpleAuthManager`.
 
-Theo [compose/.env.example](compose/.env.example), mặc định là:
+Tài khoản `không cố định` theo kiểu `airflow / airflow`.
+Username có thể cấu hình được, nhưng password thật được Airflow tự sinh.
 
-- username: `airflow`
-- password: `airflow`
+### 7.1. Kiểm tra username đang dùng
 
-Nếu bạn đã sửa `compose/.env` thì dùng thông tin trong file đó.
+```powershell
+docker exec ie212-airflow-apiserver airflow config get-value core simple_auth_manager_users
+```
 
-## 7. Kafka: bạn thật sự cần chạy lệnh nào?
+Ví dụ nếu kết quả là:
 
-Đây là phần dễ nhầm nhất, nên đọc kỹ:
+```text
+admin:admin
+```
 
-### Trường hợp A - Bạn đã start Docker với `--profile producer`
+thì:
 
-Khi đó `stock-producer` đã chạy trong Docker rồi.
+- username là `admin`
+- role là `admin`
 
-Nghĩa là:
+### 7.2. Lấy password thật
 
-- `không bắt buộc` chạy thêm producer local
-- nhưng nếu muốn demo rõ ràng từng bước, bạn vẫn có thể chạy local producer one-shot ở `Terminal 2`
+```powershell
+docker exec ie212-airflow-apiserver cat /opt/airflow/simple_auth_manager_passwords.json.generated
+```
 
-Lệnh one-shot:
+Ví dụ nếu kết quả là:
+
+```json
+{"admin": "DW4was43Wr2qvVKE"}
+```
+
+thì dùng:
+
+- username: `admin`
+- password: `DW4was43Wr2qvVKE`
+
+## 8. Kafka: bạn cần chạy lệnh nào?
+
+Nếu bạn đã start Docker với `--profile producer`, thì `stock-producer` đã chạy rồi.
+
+Tuy nhiên để demo dễ kiểm soát, mình khuyên vẫn chạy one-shot ở `Terminal 2`:
 
 ```powershell
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto --max-iterations 1
@@ -166,72 +163,54 @@ Nếu không có internet nhưng đã có `data/raw/*.csv`:
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source csv --max-iterations 1
 ```
 
-### Trường hợp B - Bạn start Docker không có `--profile producer`
+## 9. Airflow: chạy DAG nào?
 
-Khi đó `stock-producer` chưa chạy.
+Với hướng demo hiện tại, hãy chạy theo đúng thứ tự sau:
 
-Bạn phải chọn một trong hai cách:
+### 9.1. DAG 1 - Kafka smoke test
 
-#### Cách 1. Chạy producer local ở `Terminal 2`
-
-```powershell
-python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto --max-iterations 1
-```
-
-#### Cách 2. Bật riêng producer Docker
-
-```powershell
-docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d stock-producer
-```
-
-### Kết luận ngắn gọn
-
-Nếu bạn muốn ít rối nhất, hãy dùng đúng 1 cách sau:
-
-- `Cách đơn giản nhất`: start Docker với `--profile producer`, rồi không cần chạy thêm producer local
-- `Cách dễ demo nhất`: vẫn start với `--profile producer`, nhưng chạy thêm `--max-iterations 1` để nhìn rõ một lượt message vào Kafka
-
-## 8. Airflow: bấm gì, ở đâu?
-
-Sau khi Kafka đã có dữ liệu, vào Airflow:
+Vào Airflow:
 
 1. Mở [http://localhost:8088](http://localhost:8088)
-2. Đăng nhập bằng:
-   - username `airflow`
-   - password `airflow`
+2. Đăng nhập bằng username/password thật đã lấy ở bước 7
 3. Tìm DAG `ie212_kafka_end_to_end_smoke_test`
-4. Nếu DAG đang `Paused`, bật công tắc sang `On`
+4. Nếu DAG đang `Paused`, bật sang `On`
 5. Bấm vào tên DAG
-6. Ở góc trên bên phải, bấm `Trigger DAG`
-7. Chờ DAG chạy xong
+6. Bấm `Trigger DAG`
 
-### DAG này làm gì?
-
-`ie212_kafka_end_to_end_smoke_test` sẽ:
+DAG này sẽ:
 
 1. gọi producer one-shot
 2. gọi Spark batch đọc Kafka
-3. ghi dữ liệu vào `stock.kafka_ticks_batch`
-4. validate bảng đó trong PostgreSQL
+3. ghi vào `stock.kafka_ticks_batch`
+4. validate bảng này trong PostgreSQL
 
-Nếu DAG chạy `success`, nghĩa là Kafka đã thực sự tham gia pipeline.
+Nếu DAG này chạy xanh, nghĩa là Kafka đã tham gia đúng vào pipeline.
 
-## 9. Nên chạy DAG nào?
+### 9.2. DAG 2 - Spark exec pipeline
 
-Nếu mục tiêu là chứng minh Kafka có vai trò trong hệ thống, hãy ưu tiên theo thứ tự này:
+Sau đó chạy:
 
-1. `ie212_kafka_end_to_end_smoke_test`
-2. `ie212_spark_exec_pipeline`
-3. `ie212_data_pipeline`
-
-Ý nghĩa:
-
-- `ie212_kafka_end_to_end_smoke_test`
-  - test Kafka -> Spark -> PostgreSQL nhanh nhất
 - `ie212_spark_exec_pipeline`
-  - chạy batch Spark -> PostgreSQL + parquet -> MinIO
+
+DAG này sẽ:
+
+1. đọc Kafka batch
+2. ghi vào `stock.kafka_ticks_batch`
+3. ghi parquet
+4. upload parquet lên MinIO
+5. ghi audit
+
+### 9.3. DAG 3 - Data pipeline
+
+Cuối cùng mới chạy:
+
 - `ie212_data_pipeline`
-  - kiểm tra Kafka / Spark / MinIO / PostgreSQL đang ổn hay không
+
+Lưu ý:
+
+- Sau khi đã chọn hướng 2, DAG này bây giờ validate theo `stock.kafka_ticks_batch`
+- Nghĩa là bạn `không nên` chạy DAG này trước Kafka smoke test hoặc Spark exec pipeline
 
 ## 10. Đưa inference vào PostgreSQL
 
@@ -275,9 +254,11 @@ python scripts/save_inference_to_postgres.py --input-json outputs/inference/late
 ### Browser
 
 1. mở [http://localhost:8088](http://localhost:8088)
-2. đăng nhập `airflow / airflow`
+2. đăng nhập bằng username/password thật ở bước 7
 3. trigger DAG `ie212_kafka_end_to_end_smoke_test`
-4. mở [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
+4. trigger DAG `ie212_spark_exec_pipeline`
+5. trigger DAG `ie212_data_pipeline`
+6. mở [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
 
 ## 13. Reset workspace
 
