@@ -8,3 +8,4 @@ torch>=2.2
 jupyter>=1.0
 ipykernel>=6.29
 psycopg2-binary>=2.9
+kafka-python>=2.0.2

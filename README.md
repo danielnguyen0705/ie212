@@ -268,3 +268,55 @@ Sau đó bạn chạy lại từ Bước 2.
 - `compose/.env` không được commit, nên luôn tạo từ `compose/.env.example`.
 - Cổng PostgreSQL publish ra host là `15432`; cổng `5432` chỉ dùng nội bộ giữa các container.
 - File `services/api/main.py` đọc lịch sử giá từ `data/raw/`, nên dashboard cần raw CSV tồn tại nếu muốn xem price history.
+
+## 9. Kafka producer cho streaming demo
+
+Project da co them producer script de day gia co phieu vao Kafka topic `stock-price`.
+
+### Chay local producer
+
+```powershell
+pip install -r requirements.txt
+python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto
+```
+
+Lua chon source:
+
+- `--source auto`: thu `yfinance` truoc, neu that bai thi fallback sang `data/raw/*.csv`
+- `--source yfinance`: bat buoc lay gia tu `yfinance`
+- `--source csv`: chi replay gia tu `data/raw/*.csv`
+
+Vi du one-shot de test:
+
+```powershell
+python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source csv --max-iterations 1
+```
+
+### Chay producer bang Docker Compose profile rieng
+
+`stock-producer` khong chay mac dinh. Muon bat producer cung stack, dung profile `producer`:
+
+```powershell
+docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
+```
+
+Neu chi muon start rieng producer sau khi stack da len:
+
+```powershell
+docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d stock-producer
+```
+
+### Airflow smoke test cho Kafka end-to-end
+
+Da bo sung DAG `ie212_kafka_end_to_end_smoke_test`.
+
+Muc dich:
+
+1. goi one-shot producer de day message vao Kafka
+2. chay Spark batch job doc Kafka va ghi vao `stock.kafka_ticks_batch`
+3. validate bang `stock.kafka_ticks_batch` co du lieu
+
+Luu y:
+
+- DAG nay can service `stock-producer` dang chay, tuc la phai bat compose voi `--profile producer`
+- Neu may khong co internet va cung chua co `data/raw/*.csv`, producer se khong co du lieu de day vao Kafka
