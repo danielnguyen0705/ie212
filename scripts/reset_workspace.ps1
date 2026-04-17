@@ -33,6 +33,9 @@ if ($docker) {
     if (Test-Path -LiteralPath $envFileToUse) {
         Write-Host "Stopping Docker services and removing named volumes..."
         & docker compose --env-file $envFileToUse -f $ComposeFile down -v --remove-orphans
+
+        Write-Host "Stopping Docker services in producer profile (Kafka producer) if running..."
+        & docker compose --env-file $envFileToUse -f $ComposeFile --profile producer down -v --remove-orphans
     } else {
         Write-Host "Skipping docker compose reset because no env file was found."
     }
@@ -42,33 +45,17 @@ if ($docker) {
 
 $pathsToReset = @(
     (Join-Path $RepoRoot "airflow\logs"),
+    (Join-Path $RepoRoot "data\inference"),
     (Join-Path $RepoRoot "data\raw"),
     (Join-Path $RepoRoot "data\processed"),
     (Join-Path $RepoRoot "models"),
+    (Join-Path $RepoRoot "outputs"),
     (Join-Path $RepoRoot "services\spark\out")
 )
 
 foreach ($path in $pathsToReset) {
     Write-Host "Cleaning $path"
     Reset-Directory -Path $path
-}
-
-$filesToRemove = @(
-    (Join-Path $RepoRoot "data\inference\latest_window.npz"),
-    (Join-Path $RepoRoot "outputs\inference\latest_prediction.json"),
-    (Join-Path $RepoRoot "outputs\exp_results_full.csv"),
-    (Join-Path $RepoRoot "outputs\compare_step_full.csv"),
-    (Join-Path $RepoRoot "outputs\stock_mse_full.csv"),
-    (Join-Path $RepoRoot "outputs\graph_step_full.csv"),
-    (Join-Path $RepoRoot "outputs\gate_step_full.csv"),
-    (Join-Path $RepoRoot "outputs\metrics_full.json")
-)
-
-foreach ($file in $filesToRemove) {
-    if (Test-Path -LiteralPath $file) {
-        Write-Host "Removing $file"
-        Remove-Item -LiteralPath $file -Force
-    }
 }
 
 Write-Host "Removing Python cache directories..."
@@ -89,4 +76,5 @@ Ensure-Directory -Path (Join-Path $RepoRoot "outputs\inference")
 
 Write-Host ""
 Write-Host "Reset complete."
-Write-Host "You can now rerun the setup and training commands from README.md."
+Write-Host "The reset covered local ML artifacts, Kafka producer outputs, Spark parquet output, and Docker volumes."
+Write-Host "You can now rerun the setup and end-to-end flow from README.md."

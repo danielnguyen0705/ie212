@@ -1,55 +1,62 @@
-# IE212 - Stock Price Prediction with Local ML Pipeline and Big Data Stack
+# IE212 - Dự Án Dự Báo Giá Cổ Phiếu Với ML Cục Bộ Và Big Data Stack
 
-Project này phục vụ đồ án IE212 với hai phần chính:
+Project này có 2 phần gắn liền với nhau:
 
-1. Huấn luyện và suy luận mô hình dự đoán giá cổ phiếu trên máy local.
-2. Đưa pipeline đó vào hệ Big Data gồm PostgreSQL, MinIO, Kafka, Spark, Airflow và FastAPI dashboard.
+1. `Local ML pipeline` để tải dữ liệu, huấn luyện mô hình, tạo checkpoint và sinh kết quả suy luận.
+2. `Big Data pipeline` để đưa dữ liệu vào Kafka, xử lý bằng Spark, lưu vào PostgreSQL / MinIO, điều phối bằng Airflow và phục vụ qua FastAPI dashboard.
 
-README này ưu tiên một mục tiêu: clone repo về rồi chạy được từng bước, không phụ thuộc vào những file đang bị `.gitignore`.
+README này được viết theo `luồng chạy end-to-end`, để Kafka nằm đúng vai trò trong kiến trúc hệ thống thay vì bị tách rời ở cuối.
 
-## System Architecture
+## Kiến trúc tổng quan
 
 ![System Architecture](img/system_architecture.png)
 
-## Repo đang track gì và không track gì
+## Kafka đóng góp gì trong hệ thống?
 
-Những thứ sau đây được tạo ra trong lúc chạy và hiện không commit vào Git:
+Trong dự án này, Kafka là `ingestion layer` của hệ thống Big Data:
 
-- `data/raw/`: CSV cổ phiếu tải về từ `yfinance`
-- `data/processed/`: dữ liệu xử lý trung gian
-- `models/`: checkpoint `.pt`
-- `services/spark/out/`: output Spark local
-- `airflow/logs/`: log runtime
-- một số file kết quả trong `outputs/`
+- `stock-producer` lấy giá từ `yfinance` hoặc fallback từ `data/raw/*.csv`
+- producer đẩy message vào topic `stock-price`
+- Spark đọc topic `stock-price` theo 2 hướng:
+  - `streaming` -> ghi vào `stock.kafka_ticks`
+  - `batch` -> ghi vào `stock.kafka_ticks_batch` và parquet
+- parquet được upload lên MinIO
+- Airflow điều phối và validate pipeline
+- FastAPI / dashboard đọc dữ liệu đã xử lý từ PostgreSQL
 
-Điều này có nghĩa là:
+Luồng logic:
 
-- clone mới sẽ chưa có checkpoint trong `models/`
-- clone mới sẽ chưa có dữ liệu raw trong `data/raw/`
-- muốn chạy inference thật thì phải train trước để sinh checkpoint
-- muốn chạy Docker stack thì phải tạo `compose/.env` từ file mẫu
+```text
+yfinance hoặc data/raw CSV
+    -> stock-producer
+    -> Kafka topic stock-price
+    -> Spark stream/batch jobs
+    -> PostgreSQL + Parquet
+    -> MinIO + Airflow validation
+    -> FastAPI / dashboard
+```
 
 ## Cấu trúc thư mục quan trọng
 
 ```text
 IE212/
 |-- airflow/                  # Dockerfile + DAG Airflow
-|-- compose/                  # Docker Compose và env mẫu
+|-- compose/                  # Docker Compose + env mẫu
 |-- data/
-|   |-- inference/            # bundle .npz cho inference
-|   |-- raw/                  # CSV raw sinh ra sau khi chạy local pipeline
+|   |-- inference/            # inference bundle .npz
+|   |-- raw/                  # CSV raw cho local pipeline và producer fallback
 |   `-- processed/            # dữ liệu xử lý trung gian
 |-- img/
 |   `-- system_architecture.png
 |-- models/                   # checkpoint sinh ra sau khi train
-|-- outputs/                  # metrics, predictions, báo cáo thực thi
-|-- scripts/                  # entry points để train / infer / save DB
+|-- outputs/                  # metrics, predictions, reports
+|-- scripts/                  # train / infer / producer / save DB / reset
 |-- services/
 |   |-- api/                  # FastAPI + dashboard
 |   |-- inference/            # Docker image cho ML runner
-|   `-- spark/                # Spark jobs và output
-|-- src/                      # code ML core
-|-- .gitignore
+|   |-- producer/             # Docker image cho Kafka stock producer
+|   `-- spark/                # Spark jobs
+|-- src/                      # ML core code
 |-- README.md
 `-- requirements.txt
 ```
@@ -61,115 +68,102 @@ IE212/
 - Docker Desktop
 - Git
 
-## 1. Clone project
+## 1. Clone project và tạo môi trường
 
 ```powershell
 git clone <repo-url>
 cd ie212
-```
 
-## 2. Tạo môi trường Python
-
-```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Gói `psycopg2-binary` đã nằm trong `requirements.txt`, nên sau bước này các script local có ghi dữ liệu vào PostgreSQL sẽ chạy được luôn.
+## 2. Giai đoạn A - Chuẩn bị local ML assets
 
-## 3. Chạy local ML pipeline từ đầu
+Giai đoạn này tạo raw data, checkpoint và inference bundle. Đây là phần nên làm trước nếu bạn muốn:
 
-### Bước 3.1 - Tải dữ liệu raw về `data/raw/`
+- có raw CSV cho dashboard và producer fallback
+- có checkpoint cho `ml-infer`
+- có inference JSON để đẩy vào PostgreSQL
 
-Lệnh này tải dữ liệu theo danh sách ticker trong `src/config.py`.
+### A1. Tải raw CSV về `data/raw`
 
 ```powershell
 python scripts/run_train.py
 ```
 
-Hành vi hiện tại của lệnh này:
+Hành vi:
 
-- nếu `data/raw/<TICKER>.csv` đã có thì script sẽ ưu tiên dùng lại file local
-- nếu chưa có thì script mới thử tải từ `yfinance`
-- nếu muốn ép tải lại toàn bộ, dùng `python scripts/run_train.py --refresh`
+- nếu `data/raw/<TICKER>.csv` đã có thì ưu tiên dùng lại
+- nếu chưa có thì tải từ `yfinance`
+- nếu muốn tải lại toàn bộ:
 
-Sau khi chạy xong, bạn sẽ thấy các file như:
+```powershell
+python scripts/run_train.py --refresh
+```
 
-- `data/raw/AAPL.csv`
-- `data/raw/MSFT.csv`
-- ...
-
-### Bước 3.2 - Train experiment và sinh checkpoint
-
-Lệnh này là bước quan trọng nhất vì nó tạo ra checkpoint trong `models/`.
+### A2. Train và sinh checkpoint
 
 ```powershell
 python scripts/run_experiment.py
 ```
 
-Kết quả mong đợi:
+Output chính:
 
 - `models/lstm_expanding_best_full.pt`
 - `models/hybrid_expanding_best_full.pt`
 - `models/run_metadata_full.json`
 - `outputs/metrics_full.json`
-- các file CSV kết quả trong `outputs/`
 
-### Bước 3.3 - Build inference bundle
+### A3. Build inference bundle
 
 ```powershell
 python scripts/build_latest_inference_bundle.py --data-dir data/raw --output data/inference/latest_window.npz
 ```
 
-Kết quả:
-
-- `data/inference/latest_window.npz`
-
-### Bước 3.4 - Chạy inference từ checkpoint
+### A4. Chạy local inference
 
 ```powershell
 python scripts/run_checkpoint_inference.py --checkpoint models/hybrid_expanding_best_full.pt --input-npz data/inference/latest_window.npz --output-json outputs/inference/latest_prediction.json
 ```
 
-Kết quả:
-
-- `outputs/inference/latest_prediction.json`
-
-### Bước 3.5 - Kiểm tra checkpoint nếu cần
+### A5. Kiểm tra checkpoint nếu cần
 
 ```powershell
 python scripts/inspect_checkpoint.py --checkpoint models/hybrid_expanding_best_full.pt
 ```
 
-## 4. Chạy Big Data stack bằng Docker
+## 3. Giai đoạn B - Khởi động Big Data stack
 
-### Bước 4.1 - Tạo file env cho Docker Compose
-
-`compose/.env` đang bị ignore, nên clone mới sẽ không có file này. Tạo nó từ file mẫu:
+### B1. Tạo `compose/.env`
 
 ```powershell
 Copy-Item compose\.env.example compose\.env
 ```
 
-Nếu cần, sửa password/port trong `compose/.env`.
-
-### Bước 4.2 - Build Airflow image local
-
-`compose/compose.yaml` đang dùng image `ie212-airflow-custom:local`, nên phải build trước:
+### B2. Build Airflow image local
 
 ```powershell
 docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
 ```
 
-### Bước 4.3 - Start toàn bộ stack
+### B3. Start stack có Kafka / Spark / MinIO / PostgreSQL / Airflow / FastAPI
+
+Stack mặc định:
 
 ```powershell
 docker compose --env-file compose/.env -f compose/compose.yaml up -d --build
 ```
 
-Các service chính:
+Nếu muốn bật thêm producer service:
+
+```powershell
+docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
+```
+
+Service chính:
 
 - PostgreSQL: `localhost:15432`
 - MinIO API: `http://localhost:9000`
@@ -181,142 +175,193 @@ Các service chính:
 - FastAPI docs: `http://localhost:8008/docs`
 - Dashboard: `http://localhost:8008/dashboard`
 
-### Bước 4.4 - Đưa kết quả inference vào PostgreSQL
+## 4. Giai đoạn C - Đưa dữ liệu vào Kafka
 
-Sau khi đã có `outputs/inference/latest_prediction.json`, bạn có thể lưu prediction vào database:
+Đây là bước làm cho Kafka trở thành một phần thật sự của hệ thống.
 
-```powershell
-python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
-```
-
-Nếu máy host của bạn vẫn có xung đột khi gọi PostgreSQL qua `localhost`, có thể chạy trực tiếp trong container ML runner:
+### C1. Chạy local producer
 
 ```powershell
-docker exec ie212-ml-infer python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host postgres --pg-port 5432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
-```
-
-### Bước 4.5 - Xem dashboard
-
-Mở:
-
-- `http://localhost:8008/dashboard`
-- `http://localhost:8008/docs`
-
-## 5. Luồng chạy nhanh nhất để demo lại từ đầu
-
-Nếu bạn chỉ cần chạy lại local pipeline:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-python scripts/run_train.py
-python scripts/run_experiment.py
-python scripts/build_latest_inference_bundle.py --data-dir data/raw --output data/inference/latest_window.npz
-python scripts/run_checkpoint_inference.py --checkpoint models/hybrid_expanding_best_full.pt --input-npz data/inference/latest_window.npz --output-json outputs/inference/latest_prediction.json
-```
-
-Nếu bạn cần cả dashboard:
-
-```powershell
-Copy-Item compose\.env.example compose\.env
-docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
-docker compose --env-file compose/.env -f compose/compose.yaml up -d --build
-python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
-```
-
-## 6. Một lệnh để reset và chạy lại từ đầu
-
-Script reset mới:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\reset_workspace.ps1
-```
-
-Lệnh này sẽ:
-
-- `docker compose down -v --remove-orphans` nếu máy có Docker
-- xóa `data/raw/`, `data/processed/`, `models/`
-- xóa `services/spark/out/`, `airflow/logs/`
-- xóa inference bundle và các output đã generate
-- xóa toàn bộ `__pycache__`
-
-Nếu muốn xóa luôn môi trường `.venv`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\reset_workspace.ps1 -RemoveVenv
-```
-
-Sau đó bạn chạy lại từ Bước 2.
-
-## 7. Thứ tự nên dùng khi chấm/demo
-
-1. Clone repo.
-2. Tạo `.venv` và cài `requirements.txt`.
-3. Chạy `python scripts/run_train.py`.
-4. Chạy `python scripts/run_experiment.py`.
-5. Chạy `python scripts/build_latest_inference_bundle.py`.
-6. Chạy `python scripts/run_checkpoint_inference.py`.
-7. Tạo `compose/.env` từ `compose/.env.example`.
-8. Build Airflow image.
-9. Start Docker stack.
-10. Chạy `python scripts/save_inference_to_postgres.py --pg-port 15432`.
-11. Mở dashboard và docs.
-
-## 8. Ghi chú quan trọng
-
-- Nếu chưa chạy `scripts/run_experiment.py` thì sẽ chưa có `models/hybrid_expanding_best_full.pt`.
-- Nếu chưa có `data/raw/*.csv` thì `build_latest_inference_bundle.py` sẽ không chạy được.
-- `compose/.env` không được commit, nên luôn tạo từ `compose/.env.example`.
-- Cổng PostgreSQL publish ra host là `15432`; cổng `5432` chỉ dùng nội bộ giữa các container.
-- File `services/api/main.py` đọc lịch sử giá từ `data/raw/`, nên dashboard cần raw CSV tồn tại nếu muốn xem price history.
-
-## 9. Kafka producer cho streaming demo
-
-Project da co them producer script de day gia co phieu vao Kafka topic `stock-price`.
-
-### Chay local producer
-
-```powershell
-pip install -r requirements.txt
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto
 ```
 
-Lua chon source:
+Lựa chọn source:
 
-- `--source auto`: thu `yfinance` truoc, neu that bai thi fallback sang `data/raw/*.csv`
-- `--source yfinance`: bat buoc lay gia tu `yfinance`
-- `--source csv`: chi replay gia tu `data/raw/*.csv`
+- `--source auto`: thử `yfinance` trước, nếu thất bại thì fallback sang `data/raw/*.csv`
+- `--source yfinance`: chỉ lấy dữ liệu từ `yfinance`
+- `--source csv`: chỉ replay từ `data/raw/*.csv`
 
-Vi du one-shot de test:
+Ví dụ one-shot:
 
 ```powershell
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source csv --max-iterations 1
 ```
 
-### Chay producer bang Docker Compose profile rieng
-
-`stock-producer` khong chay mac dinh. Muon bat producer cung stack, dung profile `producer`:
-
-```powershell
-docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
-```
-
-Neu chi muon start rieng producer sau khi stack da len:
+### C2. Hoặc chạy producer service trong Docker
 
 ```powershell
 docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d stock-producer
 ```
 
-### Airflow smoke test cho Kafka end-to-end
+## 5. Giai đoạn D - Xử lý dữ liệu từ Kafka bằng Spark
 
-Da bo sung DAG `ie212_kafka_end_to_end_smoke_test`.
+Sau khi producer đã đẩy dữ liệu vào topic `stock-price`, Spark là lớp xử lý chính.
 
-Muc dich:
+### D1. Streaming path
 
-1. goi one-shot producer de day message vao Kafka
-2. chay Spark batch job doc Kafka va ghi vao `stock.kafka_ticks_batch`
-3. validate bang `stock.kafka_ticks_batch` co du lieu
+Job:
 
-Luu y:
+- `services/spark/jobs/write_kafka_stream_to_postgres.py`
 
-- DAG nay can service `stock-producer` dang chay, tuc la phai bat compose voi `--profile producer`
-- Neu may khong co internet va cung chua co `data/raw/*.csv`, producer se khong co du lieu de day vao Kafka
+Vai trò:
+
+- đọc topic `stock-price`
+- parse JSON `{symbol, price}`
+- append vào `stock.kafka_ticks`
+
+### D2. Batch path
+
+Job:
+
+- `services/spark/jobs/write_kafka_batch_to_postgres.py`
+- `services/spark/jobs/write_kafka_batch_to_parquet.py`
+
+Vai trò:
+
+- snapshot dữ liệu Kafka từ `earliest` đến `latest`
+- ghi vào `stock.kafka_ticks_batch`
+- ghi parquet ra `services/spark/out/kafka_ticks_parquet`
+
+## 6. Giai đoạn E - Upload parquet và validation bằng Airflow
+
+Airflow là lớp orchestration + validation, không phải nơi xử lý data thay Spark.
+
+DAGs quan trọng:
+
+- `ie212_data_pipeline`
+  - check Kafka / Spark / MinIO / PostgreSQL
+  - check `stock.kafka_ticks`
+  - ghi `stock.pipeline_audit`
+- `ie212_spark_exec_pipeline`
+  - Spark batch -> PostgreSQL
+  - Spark batch -> parquet
+  - upload parquet -> MinIO
+  - ghi audit
+- `ie212_kafka_end_to_end_smoke_test`
+  - one-shot producer -> Kafka
+  - Spark batch -> PostgreSQL
+  - validate `stock.kafka_ticks_batch`
+- `ie212_end_to_end_inference_pipeline`
+  - build bundle
+  - run inference
+  - save prediction vào PostgreSQL
+  - validate kết quả
+
+### Chạy smoke test end-to-end cho Kafka
+
+Điều kiện:
+
+- stack đã chạy
+- nếu dùng DAG này thì `stock-producer` phải đang chạy, tức là bật compose với `--profile producer`
+
+DAG:
+
+- `ie212_kafka_end_to_end_smoke_test`
+
+Mục đích:
+
+1. producer đẩy message vào Kafka
+2. Spark batch đọc Kafka và ghi vào `stock.kafka_ticks_batch`
+3. validate bằng DB
+
+## 7. Giai đoạn F - Inference và serving
+
+### F1. Đưa kết quả inference vào PostgreSQL
+
+Nếu bạn đã có `outputs/inference/latest_prediction.json`:
+
+```powershell
+python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+```
+
+Hoặc chạy trong container:
+
+```powershell
+docker exec ie212-ml-infer python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host postgres --pg-port 5432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+```
+
+### F2. Xem dashboard và docs
+
+- `http://localhost:8008/dashboard`
+- `http://localhost:8008/docs`
+
+FastAPI đọc prediction / metadata từ PostgreSQL, còn price history được đọc từ `data/raw/*.csv`.
+
+## 8. Luồng demo mạch lạc để chạy lại từ đầu
+
+Nếu bạn muốn demo đầy đủ hệ thống, thứ tự nên là:
+
+1. Clone repo và tạo `.venv`
+2. `pip install -r requirements.txt`
+3. `python scripts/run_train.py`
+4. `python scripts/run_experiment.py`
+5. `python scripts/build_latest_inference_bundle.py --data-dir data/raw --output data/inference/latest_window.npz`
+6. `python scripts/run_checkpoint_inference.py --checkpoint models/hybrid_expanding_best_full.pt --input-npz data/inference/latest_window.npz --output-json outputs/inference/latest_prediction.json`
+7. `Copy-Item compose\.env.example compose\.env`
+8. `docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .`
+9. `docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build`
+10. `python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto --max-iterations 1`
+11. Chạy DAG `ie212_kafka_end_to_end_smoke_test` hoặc `ie212_spark_exec_pipeline`
+12. `python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres`
+13. Mở dashboard và docs
+
+Như vậy, Kafka nằm đúng giữa luồng Big Data:
+
+```text
+raw data / yfinance
+    -> producer
+    -> Kafka
+    -> Spark
+    -> PostgreSQL / parquet
+    -> MinIO / Airflow validation
+    -> FastAPI / dashboard
+```
+
+## 9. Reset workspace
+
+Script reset:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\reset_workspace.ps1
+```
+
+Nếu muốn xóa luôn `.venv`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\reset_workspace.ps1 -RemoveVenv
+```
+
+Lệnh reset hiện tại sẽ:
+
+- `docker compose down -v --remove-orphans`
+- `docker compose --profile producer down -v --remove-orphans`
+- xóa local ML artifacts trong `data/raw`, `data/processed`, `data/inference`, `models`
+- xóa toàn bộ output trong `outputs/`
+- xóa Spark local output trong `services/spark/out`
+- xóa Airflow logs
+- xóa Python `__pycache__`
+
+Điều này có nghĩa là reset cũng đã bao phủ luôn phần Kafka flow mới:
+
+- producer artifacts / fallback output
+- parquet output sau khi Spark đọc Kafka
+- named volumes của PostgreSQL / MinIO / Kafka stack
+- container `stock-producer` nếu đang chạy qua profile `producer`
+
+## 10. Ghi chú quan trọng
+
+- `compose/.env` không được commit, hãy tạo từ `compose/.env.example`
+- `5432` là port PostgreSQL nội bộ giữa container, host dùng `15432`
+- dashboard cần `data/raw/*.csv` nếu bạn muốn xem price history
+- nếu không có internet và cũng chưa có `data/raw/*.csv`, producer `--source auto` sẽ không có dữ liệu để đẩy vào Kafka
+- `stock-producer` được đưa vào profile riêng để stack mặc định không bị phụ thuộc network feed
