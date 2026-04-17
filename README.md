@@ -1,8 +1,13 @@
 # IE212 - Hướng dẫn chạy hệ thống
 
-README này chỉ tập trung vào một mục tiêu: `chạy hệ thống theo đúng thứ tự, ít nhầm lẫn nhất`.
+README này tập trung vào 2 mục tiêu:
 
-## 1. Luồng chính của hệ thống
+- chạy hệ thống đúng thứ tự, ít nhầm lẫn nhất
+- hiểu rõ luồng mới `Kafka -> Spark -> model -> dashboard`
+
+## 1. Kiến trúc tổng thể
+
+Luồng chính của project hiện tại là:
 
 ```text
 yfinance hoặc data/raw CSV
@@ -10,26 +15,33 @@ yfinance hoặc data/raw CSV
 -> Kafka topic stock-price
 -> Spark batch
 -> PostgreSQL / parquet
--> MinIO / Airflow validation
--> FastAPI dashboard
+-> build Kafka inference bundle
+-> PyTorch inference
+-> stock.inference_predictions
+-> FastAPI / dashboard
 ```
 
-Ghi chú quan trọng:
+Ý nghĩa ngắn gọn:
 
-- Với trạng thái hiện tại của project, `Kafka đang được dùng theo batch path`.
-- Luồng demo chính nên bám theo:
-  - `ie212_kafka_end_to_end_smoke_test`
-  - `ie212_spark_exec_pipeline`
-  - `ie212_data_pipeline`
-- Không nên lấy `stock.kafka_ticks` làm luồng demo chính nữa.
+- `Kafka` là lớp nhận dữ liệu giá mới.
+- `Spark` đọc dữ liệu từ Kafka và ghi vào PostgreSQL hoặc parquet.
+- `build_kafka_inference_bundle.py` lấy dữ liệu mới nhất từ Kafka path để tạo input cho model.
+- `run_checkpoint_inference.py` chạy checkpoint PyTorch để sinh dự đoán.
+- `FastAPI` và dashboard đọc kết quả cuối từ `stock.inference_predictions`.
+
+Điểm quan trọng:
+
+- Hiện tại project dùng `Kafka batch path` làm luồng demo chính.
+- Prediction cuối cùng đã phụ thuộc vào dữ liệu đi qua Kafka.
+- Không dùng `stock.kafka_ticks` làm trục demo chính nữa.
 
 ## 2. Cần mở gì trước khi chạy?
 
 Bạn nên mở:
 
-- `Terminal 1`: để chạy Docker stack
-- `Terminal 2`: để chạy lệnh local như train, producer, save inference
-- `Browser`: để mở Airflow / dashboard / docs
+- `Terminal 1`: chạy Docker stack
+- `Terminal 2`: chạy lệnh local
+- `Browser`: mở Airflow, dashboard, docs
 
 ## 3. Chuẩn bị môi trường
 
@@ -42,7 +54,7 @@ cd ie212
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### 3.2. Tạo file env cho Docker
@@ -51,9 +63,9 @@ pip install -r requirements.txt
 Copy-Item compose\.env.example compose\.env
 ```
 
-## 4. Chạy local ML trước
+## 4. Chuẩn bị dữ liệu và model local
 
-Chạy ở `Terminal 2`:
+Chạy ở `Terminal 2`.
 
 ### 4.1. Tải dữ liệu raw
 
@@ -67,21 +79,14 @@ python scripts/run_train.py
 python scripts/run_experiment.py
 ```
 
-### 4.3. Tạo inference bundle
+Kết quả mong đợi:
 
-```powershell
-python scripts/build_latest_inference_bundle.py --data-dir data/raw --output data/inference/latest_window.npz
-```
-
-### 4.4. Chạy inference local
-
-```powershell
-python scripts/run_checkpoint_inference.py --checkpoint models/hybrid_expanding_best_full.pt --input-npz data/inference/latest_window.npz --output-json outputs/inference/latest_prediction.json
-```
+- có `data/raw/*.csv`
+- có checkpoint trong `models/`
 
 ## 5. Khởi động Big Data stack
 
-Chạy ở `Terminal 1`:
+Chạy ở `Terminal 1`.
 
 ### 5.1. Build Airflow image
 
@@ -95,7 +100,7 @@ docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
 docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
 ```
 
-## 6. Mở các địa chỉ cần thiết
+## 6. Các địa chỉ cần mở
 
 Mở ở `Browser`:
 
@@ -110,10 +115,7 @@ Mở ở `Browser`:
 
 Airflow hiện dùng `SimpleAuthManager`.
 
-Tài khoản `không cố định` theo kiểu `airflow / airflow`.
-Username có thể cấu hình được, nhưng password thật được Airflow tự sinh.
-
-### 7.1. Kiểm tra username đang dùng
+Username có thể kiểm tra bằng:
 
 ```powershell
 docker exec ie212-airflow-apiserver airflow config get-value core simple_auth_manager_users
@@ -130,13 +132,13 @@ thì:
 - username là `admin`
 - role là `admin`
 
-### 7.2. Lấy password thật
+Password thật được Airflow tự sinh. Lấy bằng:
 
 ```powershell
 docker exec ie212-airflow-apiserver cat /opt/airflow/simple_auth_manager_passwords.json.generated
 ```
 
-Ví dụ nếu kết quả là:
+Ví dụ:
 
 ```json
 {"admin": "DW4was43Wr2qvVKE"}
@@ -147,11 +149,33 @@ thì dùng:
 - username: `admin`
 - password: `DW4was43Wr2qvVKE`
 
-## 8. Kafka: bạn cần chạy lệnh nào?
+## 8. Kafka đang đóng góp như thế nào?
 
-Nếu bạn đã start Docker với `--profile producer`, thì `stock-producer` đã chạy rồi.
+Trong project hiện tại, Kafka là `ingestion layer` của hệ thống.
 
-Tuy nhiên để demo dễ kiểm soát, mình khuyên vẫn chạy one-shot ở `Terminal 2`:
+Luồng cụ thể:
+
+```text
+producer
+-> Kafka topic stock-price
+-> Spark batch
+-> stock.kafka_ticks_batch
+-> build_kafka_inference_bundle.py
+-> run_checkpoint_inference.py
+-> stock.inference_predictions
+```
+
+Nghĩa là:
+
+- Kafka không đi thẳng vào model
+- nhưng dữ liệu đi qua Kafka sẽ được dùng để cập nhật input của model
+- vì vậy prediction cuối cùng đã bị ảnh hưởng bởi Kafka path
+
+## 9. Bạn cần chạy lệnh Kafka nào?
+
+Nếu bạn đã start stack với `--profile producer`, thì service `stock-producer` đã chạy.
+
+Tuy nhiên để demo dễ kiểm soát, nên chạy one-shot ở `Terminal 2`:
 
 ```powershell
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto --max-iterations 1
@@ -163,75 +187,63 @@ Nếu không có internet nhưng đã có `data/raw/*.csv`:
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source csv --max-iterations 1
 ```
 
-## 9. Airflow: chạy DAG nào?
+## 10. Airflow: nên chạy DAG nào?
 
-Với hướng demo hiện tại, hãy chạy theo đúng thứ tự sau:
+Hiện tại có 2 kiểu chạy:
 
-### 9.1. DAG 1 - Kafka smoke test
+- `kiểm thử từng phần`
+- `chạy luồng hoàn chỉnh Kafka -> inference`
 
-Vào Airflow:
+### 10.1. Luồng kiểm thử từng phần
 
-1. Mở [http://localhost:8088](http://localhost:8088)
-2. Đăng nhập bằng username/password thật đã lấy ở bước 7
-3. Tìm DAG `ie212_kafka_end_to_end_smoke_test`
-4. Nếu DAG đang `Paused`, bật sang `On`
-5. Bấm vào tên DAG
-6. Bấm `Trigger DAG`
+Chạy theo thứ tự:
 
-DAG này sẽ:
+1. `ie212_kafka_end_to_end_smoke_test`
+2. `ie212_spark_exec_pipeline`
+3. `ie212_data_pipeline`
 
-1. gọi producer one-shot
-2. gọi Spark batch đọc Kafka
-3. ghi vào `stock.kafka_ticks_batch`
-4. validate bảng này trong PostgreSQL
+Ý nghĩa:
 
-Nếu DAG này chạy xanh, nghĩa là Kafka đã tham gia đúng vào pipeline.
+- DAG 1 chứng minh Kafka ghi được vào `stock.kafka_ticks_batch`
+- DAG 2 ghi parquet và upload MinIO
+- DAG 3 validate batch path
 
-### 9.2. DAG 2 - Spark exec pipeline
+### 10.2. Luồng hoàn chỉnh Kafka -> model -> dashboard
 
-Sau đó chạy:
+Đây là DAG quan trọng nhất hiện tại:
 
-- `ie212_spark_exec_pipeline`
+- `ie212_kafka_to_inference_pipeline`
 
-DAG này sẽ:
+DAG này sẽ tự chạy:
 
-1. đọc Kafka batch
-2. ghi vào `stock.kafka_ticks_batch`
-3. ghi parquet
-4. upload parquet lên MinIO
-5. ghi audit
+1. publish một vòng vào Kafka
+2. Spark batch ghi `stock.kafka_ticks_batch`
+3. build bundle inference từ dữ liệu Kafka
+4. chạy checkpoint inference
+5. lưu prediction vào `stock.inference_predictions`
+6. validate đầu ra
 
-### 9.3. DAG 3 - Data pipeline
+Nếu DAG này chạy xanh, bạn có thể nói rằng:
 
-Cuối cùng mới chạy:
+- Kafka đã tham gia vào pipeline Big Data
+- dữ liệu từ Kafka đã đi vào model
+- prediction cuối cùng đã phụ thuộc vào Kafka
 
-- `ie212_data_pipeline`
+## 11. Cách chạy thật từng bước
 
-Lưu ý:
-
-- Sau khi đã chọn hướng 2, DAG này bây giờ validate theo `stock.kafka_ticks_batch`
-- Nghĩa là bạn `không nên` chạy DAG này trước Kafka smoke test hoặc Spark exec pipeline
-
-## 10. Đưa inference vào PostgreSQL
+### Bước 1 - Chuẩn bị local ML
 
 Chạy ở `Terminal 2`:
 
 ```powershell
-python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
+.\.venv\Scripts\Activate.ps1
+python scripts/run_train.py
+python scripts/run_experiment.py
 ```
 
-## 11. Xem dashboard
+### Bước 2 - Start toàn bộ stack
 
-Mở:
-
-- Dashboard: [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
-- API docs: [http://localhost:8008/docs](http://localhost:8008/docs)
-
-## 12. Luồng chạy ngắn gọn nhất
-
-Nếu bạn chỉ muốn một chuỗi lệnh rõ ràng, hãy làm đúng thứ tự này:
-
-### Terminal 1
+Chạy ở `Terminal 1`:
 
 ```powershell
 Copy-Item compose\.env.example compose\.env
@@ -239,26 +251,51 @@ docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
 docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
 ```
 
+### Bước 3 - Lấy tài khoản Airflow
+
+Chạy ở `Terminal 2`:
+
+```powershell
+docker exec ie212-airflow-apiserver airflow config get-value core simple_auth_manager_users
+docker exec ie212-airflow-apiserver cat /opt/airflow/simple_auth_manager_passwords.json.generated
+```
+
+### Bước 4 - Mở Airflow
+
+Mở [http://localhost:8088](http://localhost:8088) trong browser, rồi đăng nhập bằng username/password vừa lấy ở bước 3.
+
+### Bước 5 - Chạy DAG hoàn chỉnh
+
+Trong Airflow:
+
+1. tìm DAG `ie212_kafka_to_inference_pipeline`
+2. nếu DAG đang `Paused` thì bật sang `On`
+3. bấm vào tên DAG
+4. bấm `Trigger DAG`
+
+### Bước 6 - Mở kết quả cuối
+
+Mở:
+
+- Dashboard: [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
+- API docs: [http://localhost:8008/docs](http://localhost:8008/docs)
+
+## 12. Nếu muốn chạy từng phần thay vì chạy DAG hoàn chỉnh
+
 ### Terminal 2
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python scripts/run_train.py
-python scripts/run_experiment.py
-python scripts/build_latest_inference_bundle.py --data-dir data/raw --output data/inference/latest_window.npz
-python scripts/run_checkpoint_inference.py --checkpoint models/hybrid_expanding_best_full.pt --input-npz data/inference/latest_window.npz --output-json outputs/inference/latest_prediction.json
 python scripts/publish_stock_ticks.py --bootstrap-servers localhost:29092 --source auto --max-iterations 1
-python scripts/save_inference_to_postgres.py --input-json outputs/inference/latest_prediction.json --pg-host localhost --pg-port 15432 --pg-db stock_project --pg-user stock_user --pg-password change_me_postgres
 ```
 
 ### Browser
 
-1. mở [http://localhost:8088](http://localhost:8088)
-2. đăng nhập bằng username/password thật ở bước 7
-3. trigger DAG `ie212_kafka_end_to_end_smoke_test`
-4. trigger DAG `ie212_spark_exec_pipeline`
-5. trigger DAG `ie212_data_pipeline`
-6. mở [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
+Trong Airflow, trigger theo thứ tự:
+
+1. `ie212_kafka_end_to_end_smoke_test`
+2. `ie212_spark_exec_pipeline`
+3. `ie212_data_pipeline`
 
 ## 13. Reset workspace
 
@@ -282,9 +319,10 @@ Reset hiện tại đã bao phủ luôn phần Kafka:
 - xóa Airflow logs
 - xóa `__pycache__`
 
-## 14. Ghi chú ngắn
+## 14. Ghi chú nhanh
 
 - PostgreSQL host port là `15432`
 - Kafka host port là `29092`
 - nếu không có internet thì producer nên dùng `--source csv`
 - nếu `data/raw/*.csv` chưa có thì hãy chạy `python scripts/run_train.py` trước
+- DAG demo hoàn chỉnh hiện tại là `ie212_kafka_to_inference_pipeline`
