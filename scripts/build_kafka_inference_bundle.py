@@ -5,7 +5,10 @@ import numpy as np
 import pandas as pd
 import psycopg2
 
-import _path_setup
+try:
+    from scripts import _path_setup  # type: ignore
+except ImportError:
+    import _path_setup  # type: ignore
 
 from scripts.build_latest_inference_bundle import (
     FEATURE_COLS,
