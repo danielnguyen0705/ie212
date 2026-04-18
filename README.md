@@ -83,39 +83,11 @@ Chạy ở `Terminal 1`:
 ```powershell
 docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
 docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
-```
-
-Lưu ý:
-
-- Với `workspace mới` hoặc sau khi đã reset volume Postgres, bước này sẽ tự tạo luôn database `airflow_meta`.
-- Nếu bạn đã từng chạy stack cũ trước khi repo được sửa, volume Postgres cũ có thể chưa có `airflow_meta`.
-
-Khi đó chọn một trong hai cách:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\reset_workspace.ps1
-```
-
-hoặc:
-
-```powershell
 docker exec ie212-postgres psql -U stock_user -d postgres -c "CREATE DATABASE airflow_meta OWNER stock_user;"
 docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-init
 docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-apiserver airflow-scheduler airflow-dag-processor airflow-triggerer
-```
-
-Nếu browser vẫn chưa vào được Airflow sau bước này, kiểm tra nhanh:
-
-```powershell
 docker compose --env-file compose/.env -f compose/compose.yaml ps
 ```
-
-Bạn cần thấy ít nhất các container này ở trạng thái `Up`:
-
-- `ie212-airflow-apiserver`
-- `ie212-airflow-scheduler`
-- `ie212-airflow-dag-processor`
-- `ie212-airflow-triggerer`
 
 ## 6. Các địa chỉ cần mở
 
@@ -242,41 +214,12 @@ Nếu DAG này chạy xanh, bạn có thể nói rằng:
 - dữ liệu từ Kafka đã đi vào model
 - prediction cuối cùng đã phụ thuộc vào Kafka
 
-## 11. Luồng chạy khuyến nghị
+Sau khi DAG này chạy xong, mở:
 
-### 11.1. Terminal 2
+- Dashboard: [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
+- API docs: [http://localhost:8008/docs](http://localhost:8008/docs)
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-python scripts/run_train.py
-python scripts/run_experiment.py
-```
-
-### 11.2. Terminal 1
-
-```powershell
-Copy-Item compose\.env.example compose\.env
-docker build -t ie212-airflow-custom:local -f airflow/Dockerfile .
-docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
-```
-
-### 11.3. Terminal 2
-
-```powershell
-docker exec ie212-airflow-apiserver airflow config get-value core simple_auth_manager_users
-docker exec ie212-airflow-apiserver cat /opt/airflow/simple_auth_manager_passwords.json.generated
-```
-
-### 11.4. Browser
-
-1. mở [http://localhost:8088](http://localhost:8088)
-2. đăng nhập bằng username/password vừa lấy
-3. tìm DAG `ie212_kafka_to_inference_pipeline`
-4. nếu DAG đang `Paused` thì bật sang `On`
-5. bấm `Trigger DAG`
-6. mở [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
-
-## 12. Nếu dashboard mở được nhưng không có dữ liệu
+## 11. Nếu dashboard mở được nhưng không có dữ liệu
 
 Nếu giao diện dashboard mở được nhưng báo:
 
@@ -292,7 +235,7 @@ Cách xử lý đúng là chạy:
 
 vì DAG này sẽ tự tạo prediction mới và lưu vào PostgreSQL.
 
-## 13. Reset workspace
+## 12. Reset workspace
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\reset_workspace.ps1
@@ -314,7 +257,7 @@ Reset hiện tại đã bao phủ luôn phần Kafka:
 - xóa Airflow logs
 - xóa `__pycache__`
 
-## 14. Ghi chú nhanh
+## 13. Ghi chú nhanh
 
 - PostgreSQL host port là `15432`
 - Kafka host port là `29092`
