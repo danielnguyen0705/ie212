@@ -1,9 +1,11 @@
 import argparse
+import tempfile
 from pathlib import Path
 
+import boto3
+from botocore.client import Config
 import numpy as np
 import pandas as pd
-import psycopg2
 
 try:
     from scripts import _path_setup  # type: ignore
@@ -18,14 +20,52 @@ from scripts.build_latest_inference_bundle import (
 )
 
 
-def get_pg_conn(host: str, port: int, dbname: str, user: str, password: str):
-    return psycopg2.connect(
-        host=host,
-        port=port,
-        dbname=dbname,
-        user=user,
-        password=password,
+def create_s3_client(endpoint: str, access_key: str, secret_key: str):
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="us-east-1",
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
+
+
+def list_and_download_parquet_files(
+    *,
+    endpoint: str,
+    access_key: str,
+    secret_key: str,
+    bucket: str,
+    prefix: str,
+) -> pd.DataFrame:
+    client = create_s3_client(endpoint, access_key, secret_key)
+
+    parquet_keys: list[str] = []
+    paginator = client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix.rstrip("/") + "/"):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if key.endswith(".parquet"):
+                parquet_keys.append(key)
+
+    if not parquet_keys:
+        raise ValueError(f"No parquet files found in MinIO at s3://{bucket}/{prefix}")
+
+    frames: list[pd.DataFrame] = []
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_root = Path(tmp_dir)
+        for key in sorted(parquet_keys):
+            local_path = tmp_root / Path(key).name
+            client.download_file(bucket, key, str(local_path))
+            frame = pd.read_parquet(local_path)
+            frames.append(frame)
+            print(f"[download] s3://{bucket}/{key} -> {local_path}")
+
+    out = pd.concat(frames, axis=0, ignore_index=True)
+    if out.empty:
+        raise ValueError("Downloaded parquet files from MinIO but no rows were found.")
+    return out
 
 
 def load_raw_price_csv(csv_path: Path, ticker: str) -> pd.DataFrame:
@@ -84,50 +124,26 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def fetch_latest_kafka_ticks(conn, table_name: str) -> list[tuple[str, float, pd.Timestamp]]:
-    with conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM information_schema.tables
-                    WHERE table_schema = split_part(%s, '.', 1)
-                      AND table_name = split_part(%s, '.', 2)
-                )
-                """,
-                (table_name, table_name),
-            )
-            exists = cur.fetchone()[0]
-            if not exists:
-                raise ValueError(f"Kafka source table does not exist: {table_name}")
+def latest_ticks_from_parquet(df: pd.DataFrame) -> list[tuple[str, float, pd.Timestamp]]:
+    required_cols = {"symbol", "price", "event_time", "kafka_offset"}
+    missing = required_cols - set(df.columns)
+    if missing:
+        raise ValueError(f"MinIO parquet data missing required columns: {sorted(missing)}")
 
-            cur.execute(
-                f"""
-                WITH latest_per_symbol AS (
-                    SELECT
-                        symbol,
-                        price,
-                        event_time,
-                        kafka_offset,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY symbol
-                            ORDER BY event_time DESC, kafka_offset DESC
-                        ) AS rn
-                    FROM {table_name}
-                )
-                SELECT symbol, price, event_time
-                FROM latest_per_symbol
-                WHERE rn = 1
-                ORDER BY symbol ASC
-                """
-            )
-            rows = cur.fetchall()
+    out = df.copy()
+    out["event_time"] = pd.to_datetime(out["event_time"], utc=True, errors="coerce")
+    out["kafka_offset"] = pd.to_numeric(out["kafka_offset"], errors="coerce").fillna(-1)
+    out = out.dropna(subset=["symbol", "price", "event_time"]).copy()
+    out = out.sort_values(["symbol", "event_time", "kafka_offset"], ascending=[True, False, False])
+    out = out.drop_duplicates(subset=["symbol"], keep="first")
 
+    rows = [
+        (str(row["symbol"]), float(row["price"]), pd.Timestamp(row["event_time"]))
+        for _, row in out.iterrows()
+    ]
     if not rows:
-        raise ValueError(f"No rows found in Kafka source table: {table_name}")
-
-    return [(str(symbol), float(price), pd.Timestamp(event_time)) for symbol, price, event_time in rows]
+        raise ValueError("No usable latest ticks found in MinIO parquet data.")
+    return rows
 
 
 def merge_kafka_tick_into_history(
@@ -153,7 +169,8 @@ def merge_kafka_tick_into_history(
 
     if event_date in out.index:
         out.loc[event_date, ["Open", "High", "Low", "Close"]] = kafka_price
-        out.loc[event_date, "Volume"] = out.loc[event_date, "Volume"] if pd.notna(out.loc[event_date, "Volume"]) else last_volume
+        if pd.isna(out.loc[event_date, "Volume"]):
+            out.loc[event_date, "Volume"] = last_volume
     elif event_date > last_date:
         out = pd.concat([out, new_row], axis=0)
     else:
@@ -168,16 +185,11 @@ def main():
     parser.add_argument("--data-dir", default="data/raw", help="Directory containing raw CSV files")
     parser.add_argument("--output", default="data/inference/kafka_latest_window.npz", help="Output npz bundle")
     parser.add_argument("--lookback", type=int, default=LOOKBACK, help="Model lookback window")
-    parser.add_argument("--pg-host", default="postgres", help="PostgreSQL host")
-    parser.add_argument("--pg-port", type=int, default=5432, help="PostgreSQL port")
-    parser.add_argument("--pg-db", default="stock_project", help="PostgreSQL database")
-    parser.add_argument("--pg-user", default="stock_user", help="PostgreSQL user")
-    parser.add_argument("--pg-password", default="change_me_postgres", help="PostgreSQL password")
-    parser.add_argument(
-        "--source-table",
-        default="stock.kafka_ticks_batch",
-        help="PostgreSQL table holding Kafka-derived market ticks",
-    )
+    parser.add_argument("--minio-endpoint", required=True, help="MinIO endpoint URL")
+    parser.add_argument("--minio-access-key", required=True, help="MinIO access key")
+    parser.add_argument("--minio-secret-key", required=True, help="MinIO secret key")
+    parser.add_argument("--minio-bucket", required=True, help="MinIO bucket containing parquet data")
+    parser.add_argument("--minio-prefix", required=True, help="MinIO prefix containing parquet data")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -185,17 +197,14 @@ def main():
     if not data_dir.exists():
         raise FileNotFoundError(f"Data dir not found: {data_dir}")
 
-    conn = get_pg_conn(
-        host=args.pg_host,
-        port=args.pg_port,
-        dbname=args.pg_db,
-        user=args.pg_user,
-        password=args.pg_password,
+    parquet_df = list_and_download_parquet_files(
+        endpoint=args.minio_endpoint,
+        access_key=args.minio_access_key,
+        secret_key=args.minio_secret_key,
+        bucket=args.minio_bucket,
+        prefix=args.minio_prefix,
     )
-    try:
-        latest_ticks = fetch_latest_kafka_ticks(conn, args.source_table)
-    finally:
-        conn.close()
+    latest_ticks = latest_ticks_from_parquet(parquet_df)
 
     tickers: list[str] = []
     data_dict: dict[str, pd.DataFrame] = {}
@@ -220,7 +229,7 @@ def main():
         last_event_dates.append(pd.Timestamp(event_time).tz_localize(None).normalize())
 
     if not tickers:
-        raise ValueError("No usable tickers available after merging Kafka ticks with local history.")
+        raise ValueError("No usable tickers available after merging MinIO parquet data with local history.")
 
     common_index = None
     for ticker in tickers:
@@ -230,7 +239,7 @@ def main():
     common_index = common_index.sort_values()
     if common_index is None or len(common_index) <= args.lookback:
         raise ValueError(
-            f"Not enough common dates after aligning Kafka-updated histories. Need > {args.lookback}, got {0 if common_index is None else len(common_index)}"
+            f"Not enough common dates after aligning MinIO-updated histories. Need > {args.lookback}, got {0 if common_index is None else len(common_index)}"
         )
 
     for ticker in tickers:
@@ -282,11 +291,12 @@ def main():
         as_of_date=np.array(effective_as_of_date, dtype=object),
         adj_raw=adj_raw.astype(np.float32),
         feature_cols=np.array(FEATURE_COLS, dtype=object),
-        source_table=np.array(args.source_table, dtype=object),
+        minio_bucket=np.array(args.minio_bucket, dtype=object),
+        minio_prefix=np.array(args.minio_prefix, dtype=object),
     )
 
     print("=" * 80)
-    print(f"Saved Kafka-driven inference bundle to: {out_path}")
+    print(f"Saved MinIO-driven inference bundle to: {out_path}")
     print(f"tickers_used: {tickers}")
     print(f"as_of_date: {effective_as_of_date}")
     print(f"X_seq shape: {x_seq.shape}")

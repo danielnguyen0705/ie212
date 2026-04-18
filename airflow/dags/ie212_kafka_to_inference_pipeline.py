@@ -91,6 +91,35 @@ docker exec "$IE212_SPARK_MASTER_CONTAINER" \
 """,
     )
 
+    kafka_batch_to_parquet = BashOperator(
+        task_id="spark_batch_to_parquet",
+        env=RUNTIME_ENV,
+        bash_command=r"""
+set -e
+docker exec "$IE212_SPARK_MASTER_CONTAINER" \
+  /opt/spark/bin/spark-submit \
+  --master "$IE212_SPARK_MASTER_URL" \
+  --packages "$IE212_SPARK_KAFKA_PACKAGE" \
+  /opt/spark/jobs/write_kafka_batch_to_parquet.py
+""",
+    )
+
+    sync_parquet_to_minio = BashOperator(
+        task_id="sync_parquet_to_minio",
+        env=RUNTIME_ENV,
+        bash_command=r"""
+set -e
+docker exec "$IE212_ML_RUNNER_CONTAINER" \
+  python -m scripts.sync_parquet_to_minio \
+  --local-dir "$IE212_ML_LOCAL_PARQUET_DIR" \
+  --minio-endpoint "$IE212_MINIO_ENDPOINT" \
+  --access-key "$IE212_MINIO_ACCESS_KEY" \
+  --secret-key "$IE212_MINIO_SECRET_KEY" \
+  --bucket "$IE212_MINIO_PROCESSED_BUCKET" \
+  --prefix "$IE212_MINIO_PARQUET_PREFIX"
+""",
+    )
+
     build_kafka_bundle = BashOperator(
         task_id="build_kafka_inference_bundle",
         env=RUNTIME_ENV,
@@ -100,11 +129,11 @@ docker exec "$IE212_ML_RUNNER_CONTAINER" \
   python -m scripts.build_kafka_inference_bundle \
   --data-dir "$IE212_INFERENCE_RAW_DIR" \
   --output "$IE212_INFERENCE_BUNDLE_PATH" \
-  --pg-host "$IE212_POSTGRES_HOST" \
-  --pg-port "$IE212_POSTGRES_PORT" \
-  --pg-db "$IE212_POSTGRES_DB" \
-  --pg-user "$IE212_POSTGRES_USER" \
-  --pg-password "$IE212_POSTGRES_PASSWORD"
+  --minio-endpoint "$IE212_MINIO_ENDPOINT" \
+  --minio-access-key "$IE212_MINIO_ACCESS_KEY" \
+  --minio-secret-key "$IE212_MINIO_SECRET_KEY" \
+  --minio-bucket "$IE212_MINIO_PROCESSED_BUCKET" \
+  --minio-prefix "$IE212_MINIO_PARQUET_PREFIX"
 """,
     )
 
@@ -145,5 +174,5 @@ docker exec "$IE212_ML_RUNNER_CONTAINER" \
         python_callable=validate_inference_predictions,
     )
 
-    publish_one_round >> kafka_batch_to_postgres >> build_kafka_bundle
+    publish_one_round >> kafka_batch_to_postgres >> kafka_batch_to_parquet >> sync_parquet_to_minio >> build_kafka_bundle
     build_kafka_bundle >> run_checkpoint_inference >> save_inference_to_postgres >> validate_outputs
