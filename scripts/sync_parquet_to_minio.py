@@ -35,6 +35,14 @@ def delete_prefix(client, bucket: str, prefix: str):
 
 
 def upload_directory(client, local_dir: Path, bucket: str, prefix: str):
+    resolved_dir = local_dir.resolve()
+    dangerous_roots = {Path("/workspace").resolve(), Path(".").resolve()}
+    if resolved_dir in dangerous_roots:
+        raise ValueError(
+            f"Refusing to upload a broad workspace directory: {resolved_dir}. "
+            "Expected the parquet output directory instead."
+        )
+
     files = sorted([path for path in local_dir.rglob("*") if path.is_file()])
     if not files:
         raise ValueError(f"No files found to upload from: {local_dir}")
