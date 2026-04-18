@@ -15,6 +15,7 @@ yfinance hoặc data/raw CSV
 -> Kafka topic stock-price
 -> Spark batch
 -> PostgreSQL / parquet
+-> MinIO
 -> build Kafka inference bundle
 -> PyTorch inference
 -> stock.inference_predictions
@@ -25,7 +26,8 @@ yfinance hoặc data/raw CSV
 
 - `Kafka` là lớp nhận dữ liệu giá mới.
 - `Spark` đọc dữ liệu từ Kafka và ghi vào PostgreSQL hoặc parquet.
-- `build_kafka_inference_bundle.py` lấy dữ liệu mới nhất từ Kafka path để tạo input cho model.
+- `MinIO` lưu parquet output từ Spark và trở thành nguồn file-based cho inference.
+- `build_kafka_inference_bundle.py` lấy parquet từ MinIO để tạo input cho model.
 - `run_checkpoint_inference.py` chạy checkpoint PyTorch để sinh dự đoán.
 - `FastAPI` và dashboard đọc kết quả cuối từ `stock.inference_predictions`.
 
@@ -144,7 +146,8 @@ Luồng cụ thể:
 producer
 -> Kafka topic stock-price
 -> Spark batch
--> stock.kafka_ticks_batch
+-> stock.kafka_ticks_batch + parquet
+-> MinIO
 -> build_kafka_inference_bundle.py
 -> run_checkpoint_inference.py
 -> stock.inference_predictions
@@ -153,7 +156,8 @@ producer
 Nghĩa là:
 
 - Kafka không đi thẳng vào model
-- dữ liệu đi qua Kafka được dùng để cập nhật input của model
+- dữ liệu đi qua Kafka được Spark xử lý, ghi parquet và upload lên MinIO
+- inference bundle được dựng từ parquet trong MinIO
 - prediction cuối cùng đã bị ảnh hưởng bởi Kafka path
 
 ## 9. Lệnh Kafka cần chạy
@@ -203,14 +207,17 @@ DAG này sẽ tự chạy:
 
 1. publish một vòng vào Kafka
 2. Spark batch ghi `stock.kafka_ticks_batch`
-3. build bundle inference từ dữ liệu Kafka
-4. chạy checkpoint inference
-5. lưu prediction vào `stock.inference_predictions`
-6. validate đầu ra
+3. Spark ghi parquet
+4. đồng bộ parquet lên MinIO
+5. build bundle inference từ parquet trong MinIO
+6. chạy checkpoint inference
+7. lưu prediction vào `stock.inference_predictions`
+8. validate đầu ra
 
 Nếu DAG này chạy xanh, bạn có thể nói rằng:
 
 - Kafka đã tham gia vào pipeline Big Data
+- MinIO đã tham gia trực tiếp vào inference path
 - dữ liệu từ Kafka đã đi vào model
 - prediction cuối cùng đã phụ thuộc vào Kafka
 
