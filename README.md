@@ -7,29 +7,47 @@ README này ưu tiên 2 việc:
 
 ## 1. Kiến trúc tổng thể
 
-Luồng chính của project hiện tại là:
+Kiến trúc hiện tại gồm 5 lớp chính:
+
+1. `Nguồn dữ liệu`
+   - dữ liệu lịch sử lấy từ `yfinance`
+   - hoặc đọc lại từ `data/raw/*.csv`
+
+2. `Ingestion layer`
+   - `stock-producer` lấy giá mới nhất
+   - publish vào Kafka topic `stock-price`
+
+3. `Big Data processing layer`
+   - Spark đọc dữ liệu từ Kafka
+   - ghi ra 2 nhánh:
+     - `stock.kafka_ticks_batch` trong PostgreSQL
+     - parquet trong `services/spark/out/kafka_ticks_parquet`
+
+4. `Object storage + inference input layer`
+   - parquet được đồng bộ lên MinIO
+   - `build_kafka_inference_bundle.py` đọc parquet từ MinIO
+   - tạo bundle `.npz` làm đầu vào cho model
+
+5. `Inference + serving layer`
+   - `run_checkpoint_inference.py` chạy checkpoint PyTorch
+   - `save_inference_to_postgres.py` lưu kết quả vào `stock.inference_predictions`
+   - FastAPI và dashboard đọc kết quả cuối từ PostgreSQL
+
+Nếu viết lại thành một luồng dễ hình dung hơn thì hệ thống đang chạy như sau:
 
 ```text
-yfinance hoặc data/raw CSV
--> stock-producer
--> Kafka topic stock-price
--> Spark batch
--> PostgreSQL / parquet
--> MinIO
--> build Kafka inference bundle
--> PyTorch inference
--> stock.inference_predictions
--> FastAPI / dashboard
+Dữ liệu lịch sử
+-> lưu ở data/raw
+-> producer lấy giá mới
+-> Kafka nhận dữ liệu online
+-> Spark xử lý dữ liệu từ Kafka
+-> Spark ghi batch table và parquet
+-> parquet được upload lên MinIO
+-> inference bundle được dựng từ parquet trong MinIO
+-> model PyTorch chạy suy luận
+-> prediction được lưu vào PostgreSQL
+-> FastAPI / dashboard hiển thị kết quả
 ```
-
-Ý nghĩa ngắn gọn:
-
-- `Kafka` là lớp nhận dữ liệu giá mới.
-- `Spark` đọc dữ liệu từ Kafka và ghi vào PostgreSQL hoặc parquet.
-- `MinIO` lưu parquet output từ Spark và trở thành nguồn file-based cho inference.
-- `build_kafka_inference_bundle.py` lấy parquet từ MinIO để tạo input cho model.
-- `run_checkpoint_inference.py` chạy checkpoint PyTorch để sinh dự đoán.
-- `FastAPI` và dashboard đọc kết quả cuối từ `stock.inference_predictions`.
 
 Điểm quan trọng:
 
@@ -90,6 +108,12 @@ docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-ini
 docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-apiserver airflow-scheduler airflow-dag-processor airflow-triggerer
 docker compose --env-file compose/.env -f compose/compose.yaml ps
 ```
+
+Kết quả mong đợi:
+
+- `ie212-postgres`, `ie212-kafka`, `ie212-spark-master`, `ie212-spark-worker`, `ie212-ml-infer`, `ie212-fastapi` ở trạng thái `Up`
+- các service `airflow-*` ở trạng thái `Up`
+- có thể mở Airflow tại [http://localhost:8088](http://localhost:8088)
 
 ## 6. Các địa chỉ cần mở
 
@@ -225,6 +249,12 @@ Sau khi DAG này chạy xong, mở:
 
 - Dashboard: [http://localhost:8008/dashboard](http://localhost:8008/dashboard)
 - API docs: [http://localhost:8008/docs](http://localhost:8008/docs)
+
+Kết quả mong đợi:
+
+- dashboard hiển thị `latest run`
+- có dữ liệu trong bảng prediction
+- API không còn báo `HTTP 500`
 
 ## 11. Nếu dashboard mở được nhưng không có dữ liệu
 
