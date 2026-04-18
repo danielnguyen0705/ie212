@@ -5,6 +5,8 @@ README này ưu tiên 2 việc:
 - chạy hệ thống đúng thứ tự, ít nhầm lẫn nhất
 - hiểu rõ luồng `Kafka -> Spark -> model -> dashboard`
 
+![Sơ đồ kiến trúc hệ thống](img/system_architecture.png)
+
 ## 1. Kiến trúc tổng thể
 
 Kiến trúc hiện tại gồm 5 lớp chính:
