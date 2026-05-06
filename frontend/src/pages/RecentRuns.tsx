@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
+import { getRecentRuns, APIError } from "../api";
+import ErrorBanner from "../components/ErrorBanner";
 
 type Run = {
   run_id: string;
-  as_of_date: string;
+  as_of_date: string | null;
   model_name: string;
   row_count: number;
   first_created_at: string;
   last_created_at: string;
-};
-
-type Response = {
-  count: number;
-  items: Run[];
 };
 
 export default function RecentRuns({
@@ -24,29 +21,46 @@ export default function RecentRuns({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:8008/predictions/runs/recent")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch runs");
-        return res.json();
-      })
-      .then((data: Response) => {
+    setLoading(true);
+    setError(null);
+
+    getRecentRuns(10)
+      .then((data) => {
         setRuns(data.items);
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        if (err instanceof APIError) {
+          setError(err.detail || "Failed to fetch runs");
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to fetch runs");
+        }
         setLoading(false);
       });
   }, []);
 
   if (loading)
-    return <p className="p-4 text-gray-500">Loading recent runs...</p>;
+    return (
+      <div className="bg-white shadow rounded-xl p-5">
+        <p className="p-4 text-gray-500">Loading recent runs...</p>
+      </div>
+    );
 
   if (error)
     return (
-      <p className="p-4 text-red-500">
-        Error loading runs: {error}
-      </p>
+      <>
+        <ErrorBanner error={error} onClose={() => setError(null)} />
+        <div className="bg-white shadow rounded-xl p-5">
+          <p className="p-4 text-red-500">Error: {error}</p>
+        </div>
+      </>
+    );
+
+  if (runs.length === 0)
+    return (
+      <div className="bg-white shadow rounded-xl p-5">
+        <p className="p-4 text-gray-400">No recent runs available</p>
+      </div>
     );
 
   return (

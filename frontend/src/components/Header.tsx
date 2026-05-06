@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { getHealth } from "../api";
 
 export default function Header({
   runId,
@@ -15,15 +16,18 @@ export default function Header({
   const copyRunId = () => {
     navigator.clipboard.writeText(runId);
     setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   // CHECK API HEALTH
   const checkHealth = async () => {
     try {
-      const res = await fetch("http://localhost:8008/health");
-      setHealthy(res.ok);
-    } catch {
+      await getHealth();
+      setHealthy(true);
+      setTimeout(() => setHealthy(null), 3000);
+    } catch (err) {
       setHealthy(false);
+      setTimeout(() => setHealthy(null), 3000);
     }
   };
 

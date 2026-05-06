@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getDashboardSummary, getLatestPredictions, APIError } from "../api";
+import ErrorBanner from "./ErrorBanner";
 
 type Summary = {
   latest_run_id: string;
@@ -9,50 +11,89 @@ type Summary = {
 
 type Prediction = {
   ticker: string;
-  pred_return: number;
+  pred_return: number | null;
 };
 
 export default function RunSummary() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [topPositive, setTopPositive] = useState<string | null>(null);
   const [topNegative, setTopNegative] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // fetch summary
-    fetch("http://localhost:8008/dashboard/summary")
-      .then((res) => res.json())
-      .then((data) => setSummary(data));
+    setLoading(true);
+    setError(null);
 
-    // fetch latest predictions để tính top +/- 📊
-    fetch("http://localhost:8008/predictions/runs/latest")
-      .then((res) => res.json())
+    // fetch summary
+    getDashboardSummary()
+      .then((data) => setSummary(data))
+      .catch((err) => {
+        if (err instanceof APIError) {
+          setError(err.detail || "Failed to load summary");
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load summary");
+        }
+      });
+
+    // fetch latest predictions untuk tính top +/- 📊
+    getLatestPredictions()
       .then((data) => {
-        const items: Prediction[] = data.items ?? [];
+        const items: Prediction[] = (data.items ?? []).map((p) => ({
+          ...p,
+          pred_return: p.pred_return ?? 0,
+        }));
 
         if (!items.length) return;
 
         const max = items.reduce((a, b) =>
-          a.pred_return > b.pred_return ? a : b
+          (a.pred_return ?? 0) > (b.pred_return ?? 0) ? a : b
         );
 
         const min = items.reduce((a, b) =>
-          a.pred_return < b.pred_return ? a : b
+          (a.pred_return ?? 0) < (b.pred_return ?? 0) ? a : b
         );
 
         setTopPositive(
-          `${max.ticker} (${(max.pred_return * 100).toFixed(4)}%)`
+          `${max.ticker} (${((max.pred_return ?? 0) * 100).toFixed(4)}%)`
         );
 
         setTopNegative(
-          `${min.ticker} (${(min.pred_return * 100).toFixed(4)}%)`
+          `${min.ticker} (${((min.pred_return ?? 0) * 100).toFixed(4)}%)`
         );
+      })
+      .catch((err) => {
+        // Silent fail for predictions, as summary is more important
+        console.error("Failed to load predictions for top/bottom", err);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
+
+  if (error) {
+    return (
+      <>
+        <ErrorBanner error={error} onClose={() => setError(null)} />
+        <div className="bg-white shadow rounded-xl p-5">
+          <p className="text-red-600 text-sm font-medium">{error}</p>
+        </div>
+      </>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white shadow rounded-xl p-5">
+        <div className="text-gray-500 text-sm">Loading summary...</div>
+      </div>
+    );
+  }
 
   if (!summary) {
     return (
       <div className="bg-white shadow rounded-xl p-5">
-        Loading summary...
+        <p className="text-gray-400 text-sm">No summary data available</p>
       </div>
     );
   }

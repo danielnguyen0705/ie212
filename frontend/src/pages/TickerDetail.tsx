@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Download, TrendingUp, TrendingDown, Target, Zap } from "lucide-react";
-
 import {
   LineChart,
   Line,
@@ -14,6 +13,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { getPriceHistory, getPredictionHistory, APIError } from "../api";
+import ErrorBanner from "../components/ErrorBanner";
 
 type PriceRow = {
   date: string;
@@ -24,8 +25,8 @@ type PredictionRow = {
   run_id: string;
   as_of_date?: string;
   pred_close: number;
-  pred_return: number;
-  graph_gate?: number;
+  pred_return: number | null;
+  graph_gate?: number | null;
   model_name?: string;
   created_at: string;
 };
@@ -36,25 +37,79 @@ export default function TickerDetail() {
   const [priceHistory, setPriceHistory] = useState<PriceRow[]>([]);
   const [predictionHistory, setPredictionHistory] = useState<PredictionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
+
     Promise.all([
-      fetch(`http://localhost:8008/prices/ticker/${ticker}/history`)
-        .then((res) => res.json())
-        .then((data) => setPriceHistory(data.items ?? [])),
-      fetch(
-        `http://localhost:8008/predictions/ticker/${ticker}/history?limit=50`
-      )
-        .then((res) => res.json())
-        .then((data) => setPredictionHistory(data.items ?? [])),
-    ]).finally(() => setLoading(false));
+      getPriceHistory(ticker || "", 30)
+        .then((data) => setPriceHistory(data.items ?? []))
+        .catch((err) => {
+          if (err instanceof APIError && err.status === 404) {
+            throw new Error(`No price history found for ticker: ${ticker}`);
+          }
+          throw err;
+        }),
+      getPredictionHistory(ticker || "", 50)
+        .then((data) => setPredictionHistory(data.items ?? []))
+        .catch((err) => {
+          if (err instanceof APIError && err.status === 404) {
+            throw new Error(`No prediction history found for ticker: ${ticker}`);
+          }
+          throw err;
+        }),
+    ]).catch((err) => {
+      if (err instanceof APIError) {
+        setError(err.detail || "Failed to load data");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to load ticker data");
+      }
+    }).finally(() => {
+      setLoading(false);
+    });
   }, [ticker]);
+
+  if (error) {
+    return (
+      <>
+        <ErrorBanner error={error} onClose={() => setError(null)} />
+        <div className="min-h-screen bg-slate-50 p-6">
+          <Link
+            to="/"
+            className="inline-block px-5 py-2 bg-green-400 text-white rounded-lg shadow-sm hover:bg-green-500 transition font-medium mb-4"
+          >
+            ← Back to Dashboard
+          </Link>
+          <div className="bg-white shadow rounded-xl p-6 text-center py-12">
+            <p className="text-red-600 font-medium">{error}</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 p-6">
         <div className="text-center text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (priceHistory.length === 0 && predictionHistory.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6">
+        <Link
+          to="/"
+          className="inline-block px-5 py-2 bg-green-400 text-white rounded-lg shadow-sm hover:bg-green-500 transition font-medium mb-4"
+        >
+          ← Back to Dashboard
+        </Link>
+        <div className="bg-white shadow rounded-xl p-6 text-center py-12">
+          <p className="text-gray-400">No data available for ticker {ticker}</p>
+        </div>
       </div>
     );
   }
@@ -372,12 +427,12 @@ export default function TickerDetail() {
                     <td className="p-3">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          row.pred_return >= 0
+                          (row.pred_return ?? 0) >= 0
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {row.pred_return >= 0 ? "+" : ""}{(row.pred_return * 100).toFixed(2)}%
+                        {(row.pred_return ?? 0) >= 0 ? "+" : ""}{((row.pred_return ?? 0) * 100).toFixed(2)}%
                       </span>
                     </td>
                     <td className="p-3">

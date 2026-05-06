@@ -1,39 +1,37 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-type Prediction = {
-  ticker: string;
-  last_close: number;
-  pred_close: number;
-  pred_return: number;
-  graph_gate?: number;
-  created_at?: string;
-};
-
-type PredictionResponse = {
-  run_id: string;
-  as_of_date: string;
-  model_name: string;
-  row_count: number;
-  items: Prediction[];
-};
+import { getRunDetail, APIError, type PredictionItem } from "../api";
+import ErrorBanner from "../components/ErrorBanner";
 
 export default function PredictionTable({
   runId,
 }: {
   runId: string;
 }) {
-  const [data, setData] = useState<Prediction[]>([]);
+  const [data, setData] = useState<PredictionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
 
-    fetch(`http://localhost:8008/predictions/runs/${runId}`)
-      .then((res) => res.json())
-      .then((json: PredictionResponse) => {
+    getRunDetail(runId)
+      .then((json) => {
         setData(json.items ?? []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err instanceof APIError) {
+          setError(
+            err.status === 404
+              ? `Run not found: ${runId}`
+              : err.detail || "Failed to load predictions"
+          );
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load predictions");
+        }
         setLoading(false);
       });
   }, [runId]);
@@ -42,10 +40,31 @@ export default function PredictionTable({
     item.ticker.toLowerCase().includes(filter.toLowerCase())
   );
 
+  if (error) {
+    return (
+      <>
+        <ErrorBanner error={error} onClose={() => setError(null)} />
+        <div className="bg-white shadow rounded-xl p-6 text-center py-12">
+          <p className="text-red-600 font-medium">Error: {error}</p>
+        </div>
+      </>
+    );
+  }
+
   if (loading) {
     return (
       <div className="bg-white shadow rounded-xl p-6">
-        Loading predictions...
+        <div className="text-center py-8 text-gray-500">
+          Loading predictions...
+        </div>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="bg-white shadow rounded-xl p-6 text-center py-12">
+        <p className="text-gray-400">No predictions found for this run.</p>
       </div>
     );
   }
@@ -77,8 +96,12 @@ export default function PredictionTable({
 
       {/* TABLE */}
       <div className="overflow-auto max-h-[420px]">
-
-        <table className="w-full text-sm">
+        {filtered.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            No predictions match filter "{filter}"
+          </div>
+        ) : (
+          <table className="w-full text-sm">
 
           <thead className="text-gray-500 border-b">
             <tr>
@@ -139,12 +162,12 @@ export default function PredictionTable({
                   <td className="p-3">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        item.pred_return >= 0
+                        (item.pred_return ?? 0) >= 0
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {(item.pred_return * 100).toFixed(4)}%
+                      {((item.pred_return ?? 0) * 100).toFixed(4)}%
                     </span>
                   </td>
 
@@ -190,7 +213,7 @@ export default function PredictionTable({
           </tbody>
 
         </table>
-
+        )}
       </div>
 
     </div>

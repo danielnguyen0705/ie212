@@ -1,189 +1,442 @@
-# Frontend README
+# Báo Cáo Triển Khai Frontend Dashboard IE212
 
-## 1. Tổng quan frontend
+## 1. Tổng Quan Dự Án
 
-Đây là phần frontend của dashboard IE212, xây dựng bằng:
+Dự án IE212 là hệ thống dự đoán giá chứng khoán sử dụng machine learning với kiến trúc microservices. Dự án bao gồm:
 
-* React 19
-* Vite
-* TypeScript
-* Tailwind CSS
-* Recharts để hiển thị đồ thị
-* React Router DOM để điều hướng client-side
-* lucide-react cho icon
+- **Backend Services**: API FastAPI, Inference service, PostgreSQL, Kafka, MinIO, Spark, Airflow
+- **Frontend Dashboard**: React TypeScript application để visualize predictions và analytics
+- **Data Pipeline**: Airflow DAGs cho ETL và inference workflows
+- **Models**: Hybrid LSTM + Graph Neural Network cho stock prediction
 
-Frontend kết nối với backend API tại `http://localhost:8008` và hiển thị các lần chạy dự đoán, mã chứng khoán và các biểu đồ phân tích.
+Frontend dashboard được xây dựng bằng React 19, TypeScript, Vite, Tailwind CSS, và Recharts để cung cấp giao diện trực quan cho việc theo dõi và phân tích dự đoán giá chứng khoán.
 
-## 2. Cách chạy frontend
+## 2. Kiến Trúc Tổng Quan
 
-Từ thư mục gốc của dự án:
+### 2.1. Kiến Trúc Hệ Thống
 
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend API   │    │   Inference     │
+│   Dashboard     │◄──►│   (FastAPI)     │◄──►│   Service       │
+│   (React)       │    │                 │    │   (PyTorch)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PostgreSQL    │    │     Kafka       │    │     MinIO       │
+│   (Predictions) │    │   (Streaming)   │    │   (Storage)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         ▲                       ▲                       ▲
+         └───────────────────────┼───────────────────────┘
+                         Airflow DAGs
+                     (Data Pipeline Orchestration)
+```
+
+### 2.2. Luồng Dữ Liệu
+
+1. **Data Ingestion**: Producer service thu thập dữ liệu chứng khoán qua Kafka
+2. **ETL Pipeline**: Airflow DAGs xử lý dữ liệu và lưu vào PostgreSQL/MinIO
+3. **Model Training**: Spark jobs train models và lưu checkpoints
+4. **Inference**: Inference service load model và generate predictions
+5. **API Serving**: FastAPI expose predictions qua REST endpoints
+6. **Visualization**: Frontend consume API và display charts/tables
+
+## 3. Cách Khởi Động Dự Án
+
+### 3.1. Yêu Cầu Hệ Thống
+
+**Phần cứng:**
+- RAM: Tối thiểu 8GB, khuyến nghị 16GB+
+- CPU: 4 cores trở lên
+- Disk: 20GB dung lượng trống
+
+**Phần mềm:**
+- Docker Desktop 4.0+
+- Node.js 18+
+- npm 8+
+- Git
+- Python 3.9+ (cho backend services)
+
+### 3.2. Chuẩn Bị Môi Trường
+
+#### Bước 1: Clone Repository
+```bash
+git clone <repository-url>
+cd ie212
+```
+
+#### Bước 2: Cấu Hình Environment Variables
+```bash
+# Copy file .env mẫu
+cp compose/.env.example compose/.env
+
+# Chỉnh sửa các biến môi trường cần thiết
+# POSTGRES_PASSWORD, KAFKA settings, MINIO credentials, etc.
+```
+
+#### Bước 3: Khởi Động Backend Services
+```bash
+# Khởi động infrastructure (PostgreSQL, Kafka, MinIO, Spark)
+docker compose --env-file compose/.env -f compose/compose.yaml up -d postgres kafka minio spark-master spark-worker
+
+# Khởi động producer để tạo dữ liệu mẫu
+docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
+
+# Khởi động Airflow cho data pipelines
+docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-init
+docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-webserver airflow-scheduler airflow-worker airflow-triggerer
+```
+
+#### Bước 4: Khởi Động Inference và API Services
+```bash
+# Khởi động inference service
+docker compose --env-file compose/.env -f compose/compose.yaml up -d inference
+
+# Khởi động FastAPI backend
+docker compose --env-file compose/.env -f compose/compose.yaml up -d api
+```
+
+#### Bước 5: Khởi Động Frontend Dashboard
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Sau đó mở trình duyệt:
+#### Bước 6: Truy Cập Ứng Dụng
+Mở trình duyệt và truy cập: `http://localhost:5173`
 
-```text
-http://localhost:5173
-```
+### 3.3. Kiểm Tra Hoạt Động
 
-Nếu backend chưa chạy, frontend vẫn sẽ khởi động, nhưng các yêu cầu dữ liệu sẽ lỗi khi gọi tới `http://localhost:8008`.
-
-## 3. Dừng và khởi động lại frontend
-
-### Dừng
-
-Nếu server dev đang chạy, dùng:
-
+#### Kiểm tra Backend Services:
 ```bash
-Ctrl + C
+# Health check API
+curl http://localhost:8008/health
+
+# Kiểm tra API docs
+open http://localhost:8008/docs
 ```
 
-Ở terminal chạy docker:
+#### Kiểm tra Frontend:
+- Dashboard load thành công
+- Có thể chọn run gần nhất
+- Bảng dự đoán hiển thị dữ liệu
+- Analytics charts render đúng
+- Ticker detail pages hoạt động
+
+## 4. Cách Tái Khởi Động Dự Án
+
+### 4.1. Dừng Tất Cả Services
+```bash
+# Từ thư mục gốc dự án
 docker compose --env-file compose/.env -f compose/compose.yaml down
 
-### Khởi động lại
+# Dừng frontend (Ctrl + C trong terminal frontend)
+```
 
-Mở terminal để build docker:
-docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
-
-docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-apiserver airflow-scheduler airflow-dag-processor airflow-triggerer
-
-Từ thư mục `frontend`:
-
+### 4.2. Khởi Động Lại
 ```bash
+# Khởi động backend services
+docker compose --env-file compose/.env -f compose/compose.yaml up -d postgres kafka minio spark-master spark-worker
+docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
+docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-init
+docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-webserver airflow-scheduler airflow-worker airflow-triggerer
+docker compose --env-file compose/.env -f compose/compose.yaml up -d inference api
+
+# Khởi động frontend
+cd frontend
 npm run dev
 ```
 
+### 4.3. Restart Riêng Lẻ Services
+```bash
+# Restart API service
+docker compose --env-file compose/.env -f compose/compose.yaml restart api
 
-## 4. Kiến trúc frontend
+# Restart inference service
+docker compose --env-file compose/.env -f compose/compose.yaml restart inference
 
-### Điểm vào chính
+# Restart frontend (Ctrl + C rồi npm run dev lại)
+```
 
-* `frontend/src/App.tsx` định nghĩa các route của ứng dụng.
-* `App.tsx` quản lý trạng thái run ID hiện tại và điều hướng đến:
-  * `/` - Dashboard
-  * `/analytics` - trang Analytics
-  * `/ticker/:ticker` - trang chi tiết ticker
+## 5. Kiến Trúc Frontend
 
-### Layout và điều hướng
+### 5.1. Công Nghệ Sử Dụng
 
-* `frontend/src/components/Layout.tsx` xây dựng cấu trúc chính của trang với header và layout hai cột.
-* `frontend/src/components/Header.tsx` chứa các nút điều hướng, kiểm tra API, refresh, copy run ID và mở API docs.
+- **React 19**: Framework UI với hooks và concurrent features
+- **TypeScript**: Type safety và developer experience
+- **Vite**: Build tool nhanh với HMR
+- **Tailwind CSS**: Utility-first CSS framework
+- **React Router DOM**: Client-side routing
+- **Recharts**: Chart library cho data visualization
+- **Lucide React**: Icon library
 
-### Các trang
-
-* `frontend/src/pages/PredictionTable.tsx` - bảng dự đoán với lọc và liên kết ticker.
-* `frontend/src/pages/RecentRuns.tsx` - chọn run gần nhất.
-* `frontend/src/pages/Analytics.tsx` - trang phân tích tổng hợp các biểu đồ và số liệu.
-* `frontend/src/pages/TickerDetail.tsx` - trang chi tiết ticker với lịch sử giá và dự đoán.
-
-### Thành phần biểu đồ / dữ liệu
-
-* `frontend/src/components/Statistics.tsx` - các biểu đồ phân tích về phân phối lợi nhuận, phân phối độ tin cậy, tỷ lệ độ tin cậy và scatter plot.
-* `frontend/src/components/RunSummary.tsx` - thẻ tóm tắt run trên dashboard.
-
-### Luồng dữ liệu
-
-* `App.tsx` lưu run ID đang chọn trong state của React.
-* `PredictionTable` gọi `GET /predictions/runs/{run_id}` để lấy dự đoán cho run đã chọn.
-* `RecentRuns` gọi `GET /predictions/runs/recent` và cập nhật run ID khi chọn một lần chạy mới.
-* `RunSummary` gọi `GET /dashboard/summary` và tính toán top dự đoán tích cực/tiêu cực từ dữ liệu run gần nhất.
-* `Statistics` gọi dữ liệu run đã chọn và hiển thị biểu đồ.
-* `TickerDetail` gọi `GET /prices/ticker/{ticker}/history` và `GET /predictions/ticker/{ticker}/history`.
-
-## 5. Tính năng frontend
-
-### Điều hướng
-
-* Thanh điều hướng trên cùng cho phép chuyển đổi giữa `Dashboard` và `Analytics`.
-* Có thêm nút `Refresh` để tải lại trang, nút `Copy Run ID`, nút kiểm tra API và nút mở API Docs.
-
-### Trang Dashboard
-
-Trang Dashboard chính bao gồm:
-
-* Bảng dự đoán
-  * Hiển thị ticker, giá đóng cửa gần nhất, giá dự đoán, delta, lợi nhuận dự đoán, độ tin cậy và thời gian.
-  * Có ô lọc để tìm ticker.
-  * Mỗi ticker liên kết tới trang chi tiết ticker `/ticker/:ticker`.
-* Tóm tắt run
-  * Hiển thị run ID mới nhất, số lượng ticker, lợi nhuận dự đoán trung bình và thời gian cập nhật gần nhất.
-  * Hiển thị các ticker dự đoán tốt nhất và dự đoán xấu nhất.
-* Chọn run gần nhất
-  * Tải metadata các run gần đây.
-  * Nhấn vào run mới sẽ cập nhật run đang xem trên dashboard.
-
-### Trang Analytics
-
-Trang Analytics bao gồm:
-
-* Các thẻ KPI cho tỷ lệ thắng, độ tin cậy trung bình, lợi nhuận lớn nhất và lợi nhuận nhỏ nhất.
-* Các biểu đồ:
-  * Phân phối lợi nhuận dự đoán
-  * Phân phối độ tin cậy (Graph Gate)
-  * Biểu đồ tròn phân bổ độ tin cậy
-  * Biểu đồ scatter độ tin cậy theo độ lớn lợi nhuận
-* Các bảng tóm tắt hiển thị ticker có độ tin cậy cao nhất và các dự đoán lợi nhuận tốt nhất/tồi nhất.
-
-### Trang chi tiết ticker
-
-Trang này cung cấp thông tin chi tiết theo ticker:
-
-* Biểu đồ giá thực tế so với giá dự đoán.
-* Lịch sử xu hướng dự đoán.
-* Đường thời gian độ tin cậy.
-* Thẻ tóm tắt với giá hiện tại, thay đổi giá, độ tin cậy mới nhất và lợi nhuận dự đoán.
-* Nút export placeholder cho tải chart.
-
-### Các tính năng tiện ích
-
-* Sao chép run ID vào clipboard.
-* Nút kiểm tra trạng thái API gọi `http://localhost:8008/health`.
-* Liên kết nhanh tới Swagger docs backend tại `http://localhost:8008/docs`.
-
-## 6. Các endpoint dữ liệu frontend
-
-Frontend sử dụng các route backend tại `http://localhost:8008`:
-
-* `GET /predictions/runs/{run_id}` - lấy dự đoán cho run được chọn
-* `GET /predictions/runs/recent` - danh sách run gần nhất
-* `GET /dashboard/summary` - số liệu tổng quan dashboard
-* `GET /predictions/runs/latest` - dự đoán run mới nhất cho top positive/negative
-* `GET /prices/ticker/{ticker}/history` - lịch sử giá ticker
-* `GET /predictions/ticker/{ticker}/history` - lịch sử dự đoán ticker
-* `GET /health` - kiểm tra trạng thái API
-* `GET /docs` - tài liệu API / Swagger
-
-## 7. Cấu trúc thư mục
+### 5.2. Cấu Trúc Thư Mục Frontend
 
 ```
 frontend/
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── src/
-│   ├── App.tsx
-│   ├── components/
-│   │   ├── Header.tsx
-│   │   ├── Layout.tsx
-│   │   ├── RunSummary.tsx
-│   │   └── Statistics.tsx
-│   ├── pages/
-│   │   ├── Analytics.tsx
-│   │   ├── Dashboard.tsx
-│   │   ├── PredictionTable.tsx
-│   │   ├── RecentRuns.tsx
-│   │   └── TickerDetail.tsx
-│   └── main.tsx
-└── public/
+├── eslint.config.js              # ESLint configuration
+├── index.html                    # HTML template
+├── package.json                  # Dependencies và scripts
+├── tsconfig.app.json             # TypeScript config cho app
+├── tsconfig.json                 # TypeScript base config
+├── tsconfig.node.json            # TypeScript config cho Node.js
+├── vite.config.ts                # Vite configuration
+├── public/                       # Static assets
+│   └── vite.svg
+└── src/
+    ├── api.ts                    # Centralized API client
+    ├── App.css                   # Global styles
+    ├── App.tsx                   # Main app component với routing
+    ├── index.css                 # Tailwind CSS imports
+    ├── main.tsx                  # App entry point
+    ├── assets/                   # Dynamic assets
+    ├── components/               # Reusable UI components
+    │   ├── ErrorBanner.tsx       # Global error display
+    │   ├── Header.tsx            # Navigation header
+    │   ├── Layout.tsx            # Main layout wrapper
+    │   ├── RunSummary.tsx        # Run summary card
+    │   ├── Statistics.tsx        # Analytics charts
+    │   └── TickerSelector.tsx    # Ticker dropdown
+    └── pages/                    # Page components
+        ├── Analytics.tsx         # Analytics dashboard
+        ├── PredictionTable.tsx   # Predictions table
+        ├── RecentRuns.tsx        # Run selector
+        └── TickerDetail.tsx      # Ticker detail page
 ```
 
-## 8. Ghi chú
+### 5.3. Điểm Vào Chính
 
-* Frontend được thiết kế để hoạt động với backend local ở `http://localhost:8008`.
-* Nếu backend không sẵn sàng, các thành phần dashboard sẽ hiển thị trạng thái đang tải hoặc lỗi.
-* Dùng `npm run build` để kiểm tra TypeScript và Vite compile thành công.
+- **`src/main.tsx`**: Mount React app với BrowserRouter
+- **`src/App.tsx`**: Define routes và global state (selectedRunId, globalError)
+- **`src/api.ts`**: Centralized API calls với error handling
+
+### 5.4. Luồng Dữ Liệu Frontend
+
+```
+User Interaction → Component State → API Call → Backend → Response → UI Update
+```
+
+- **State Management**: React useState hooks trong components
+- **API Communication**: Fetch API với custom error handling
+- **Error Handling**: Global ErrorBanner + component-level error states
+- **Loading States**: Loading spinners cho tất cả async operations
+
+## 6. Tính Năng Frontend
+
+### 6.1. Điều Hướng và Layout
+
+- **Header Navigation**: Dashboard / Analytics tabs
+- **Utility Buttons**: Refresh, Copy Run ID, API Health Check, Open API Docs
+- **Responsive Layout**: Grid system với Tailwind CSS
+- **Breadcrumb Navigation**: Back buttons trong ticker detail
+
+### 6.2. Trang Dashboard
+
+**Bảng Dự Đoán:**
+- Hiển thị: Ticker, Last Close, Pred Close, Delta, Pred Return (%), Confidence, Created At
+- Filtering: Text search theo ticker
+- Sorting: Click column headers
+- Linking: Ticker links đến detail page
+
+**Tóm Tắt Run:**
+- Run ID, số lượng ticker, avg pred return, last updated
+- Top 3 positive/negative predictions
+
+**Chọn Run Gần Nhất:**
+- List recent runs với metadata
+- Click để switch run context
+
+### 6.3. Trang Analytics
+
+**KPI Cards:**
+- Win Rate: % positive predictions
+- Avg Confidence: Mean graph gate value
+- Max/Min Return: Best/worst predictions
+
+**Biểu Đồ:**
+- Return Distribution: Histogram của pred_return
+- Confidence Distribution: Histogram của graph_gate
+- Confidence Breakdown: Pie chart (High/Medium/Low)
+- Confidence vs Return: Scatter plot
+
+**Bảng Tóm Tắt:**
+- Top confident tickers
+- Best/worst return predictions
+
+### 6.4. Trang Chi Tiết Ticker
+
+**Biểu Đồ Lịch Sử:**
+- Price History: Line chart giá đóng cửa
+- Prediction History: Bar chart pred_return
+- Confidence Timeline: Line chart graph_gate
+
+**Thẻ Tóm Tắt:**
+- Current price, price change, latest confidence, pred return
+
+**Export Feature:**
+- Placeholder cho PDF/PNG export
+
+### 6.5. Tính Năng Tiên Tiến
+
+**Error Handling & Resilience:**
+- Global error banner với dismiss
+- APIError class cho structured errors
+- Graceful degradation khi API fail
+- Empty states với helpful messages
+
+**User Experience:**
+- Loading states cho tất cả operations
+- Confidence badges (High/Medium/Low)
+- Auto-dismiss notifications
+- Responsive design
+
+**Developer Experience:**
+- Full TypeScript với strict mode
+- Centralized API client
+- Consistent error patterns
+- Build verification (npm run build passes)
+
+## 7. Các Endpoint Dữ Liệu
+
+Frontend kết nối với backend API tại `http://localhost:8008`:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | API health check |
+| `/tickers` | GET | List available tickers |
+| `/dashboard/summary` | GET | Dashboard summary stats |
+| `/predictions/runs/recent` | GET | Recent prediction runs |
+| `/predictions/runs/{run_id}` | GET | Predictions for specific run |
+| `/predictions/runs/latest` | GET | Latest predictions |
+| `/prices/ticker/{ticker}/history` | GET | Price history for ticker |
+| `/predictions/ticker/{ticker}/history` | GET | Prediction history for ticker |
+| `/docs` | GET | Swagger API documentation |
+
+## 8. Build và Deployment
+
+### 8.1. Development Build
+```bash
+cd frontend
+npm run dev  # HMR enabled, port 5173
+```
+
+### 8.2. Production Build
+```bash
+cd frontend
+npm run build  # Output to dist/
+npm run preview  # Preview production build
+```
+
+### 8.3. Docker Deployment
+```bash
+# Build tất cả services
+docker compose --env-file compose/.env -f compose/compose.yaml build
+
+# Deploy production stack
+docker compose --env-file compose/.env -f compose/compose.yaml --profile production up -d
+```
+
+## 9. Troubleshooting
+
+### 9.1. Frontend Issues
+
+**Không kết nối được backend:**
+- Kiểm tra backend running: `curl http://localhost:8008/health`
+- Verify CORS trong FastAPI config
+- Check environment variables
+
+**Build fails:**
+- Clear node_modules: `rm -rf node_modules && npm install`
+- Check TypeScript errors: `npm run build`
+- Update dependencies: `npm update`
+
+**Charts không render:**
+- Check Recharts version compatibility
+- Verify data format từ API
+- Console errors trong browser dev tools
+
+### 9.2. Backend Issues
+
+**Services không start:**
+- Check Docker Desktop running
+- Verify .env file configuration
+- Check disk space: `docker system df`
+
+**Out of memory:**
+- Increase Docker Desktop RAM allocation
+- Reduce Spark batch sizes
+- Monitor với `docker stats`
+
+**Database connection fails:**
+- Verify PostgreSQL credentials trong .env
+- Check network connectivity giữa containers
+
+## 10. Monitoring và Logs
+
+### 10.1. Xem Logs Services
+```bash
+# API logs
+docker compose logs api
+
+# Inference logs
+docker compose logs inference
+
+# Airflow logs
+docker compose logs airflow-webserver
+
+# Frontend dev server logs (terminal window)
+```
+
+### 10.2. Health Monitoring
+- **Frontend**: Error banner hiển thị API issues
+- **Backend**: `/health` endpoint returns service status
+- **Database**: Connection checks trong API logs
+- **Inference**: Model loading status trong logs
+
+### 10.3. Performance Monitoring
+- Bundle size: `npm run build` output
+- API response times: Browser network tab
+- Memory usage: `docker stats`
+- Error rates: Console logs
+
+## 11. Ghi Chú Kỹ Thuật
+
+### 11.1. Performance Optimizations
+- Code splitting với React.lazy() (recommended for production)
+- Bundle size: 663KB minified (194KB gzipped)
+- Tree shaking enabled qua Vite
+- Image optimization với Vite plugins
+
+### 11.2. Security Considerations
+- API calls sử dụng HTTPS trong production
+- CORS configured properly
+- Input validation trên backend
+- No sensitive data exposed trong frontend
+
+### 11.3. Browser Support
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- ES2020+ features via Vite transpilation
+- CSS Grid/Flexbox support required
+
+### 11.4. Future Enhancements
+- Dark mode toggle
+- Real-time updates với WebSocket
+- Chart export (PDF/PNG)
+- Advanced filtering và search
+- User authentication (nếu cần)
+- PWA capabilities
+
+## 12. Kết Luận
+
+Frontend dashboard IE212 đã được triển khai hoàn chỉnh với:
+
+- **Tính năng đầy đủ**: Dashboard, Analytics, Ticker Detail
+- **UX/UI tốt**: Responsive, error handling, loading states
+- **Code quality**: TypeScript, modern React patterns
+- **Maintainability**: Modular architecture, centralized API
+- **Performance**: Fast build, optimized bundle
+- **Reliability**: Comprehensive error handling
+
+Dự án sẵn sàng cho production deployment với Docker và có thể mở rộng dễ dàng cho các tính năng mới.

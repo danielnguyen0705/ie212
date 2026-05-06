@@ -19,38 +19,66 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-
-type Prediction = {
-  ticker: string;
-  last_close: number;
-  pred_close: number;
-  pred_return: number;
-  graph_gate?: number;
-  created_at?: string;
-};
+import { getRunDetail, APIError, type PredictionItem } from "../api";
+import ErrorBanner from "./ErrorBanner";
 
 type StatisticsProps = {
   runId: string;
 };
 
 export default function Statistics({ runId }: StatisticsProps) {
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [predictions, setPredictions] = useState<PredictionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:8008/predictions/runs/${runId}`)
-      .then((res) => res.json())
-      .then((json: any) => {
+    setError(null);
+
+    getRunDetail(runId)
+      .then((json) => {
         setPredictions(json.items ?? []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err instanceof APIError) {
+          setError(
+            err.status === 404
+              ? `Run not found: ${runId}`
+              : err.detail || "Failed to load statistics"
+          );
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load statistics");
+        }
         setLoading(false);
       });
   }, [runId]);
 
+  if (error) {
+    return (
+      <>
+        <ErrorBanner error={error} onClose={() => setError(null)} />
+        <div className="bg-white shadow rounded-xl p-6 text-center py-12">
+          <p className="text-red-600 font-medium">{error}</p>
+        </div>
+      </>
+    );
+  }
+
   if (loading) {
     return (
       <div className="bg-white shadow rounded-xl p-6">
-        Loading statistics...
+        <div className="text-center py-8 text-gray-500">
+          Loading statistics...
+        </div>
+      </div>
+    );
+  }
+
+  if (predictions.length === 0) {
+    return (
+      <div className="bg-white shadow rounded-xl p-6 text-center py-12">
+        <p className="text-gray-400">No predictions available to analyze</p>
       </div>
     );
   }
@@ -58,7 +86,7 @@ export default function Statistics({ runId }: StatisticsProps) {
   // ===== CALCULATIONS =====
 
   // Win rate
-  const winCount = predictions.filter((p) => p.pred_return >= 0).length;
+  const winCount = predictions.filter((p) => (p.pred_return ?? 0) >= 0).length;
   const winRate = predictions.length > 0 ? (winCount / predictions.length) * 100 : 0;
 
   // Avg confidence
@@ -69,8 +97,9 @@ export default function Statistics({ runId }: StatisticsProps) {
       : 0;
 
   // Max/Min returns
-  const maxReturn = Math.max(...predictions.map((p) => p.pred_return), 0);
-  const minReturn = Math.min(...predictions.map((p) => p.pred_return), 0);
+  const returnValues = predictions.map((p) => p.pred_return ?? 0);
+  const maxReturn = Math.max(...returnValues, 0);
+  const minReturn = Math.min(...returnValues, 0);
 
   // Top/Bottom tickers by confidence
   const sortedByConfidence = [...predictions].sort(
@@ -83,20 +112,20 @@ export default function Statistics({ runId }: StatisticsProps) {
 
   // Top/Bottom tickers by return
   const sortedByReturn = [...predictions].sort(
-    (a, b) => b.pred_return - a.pred_return
+    (a, b) => (b.pred_return ?? 0) - (a.pred_return ?? 0)
   );
   const topReturnTickers = sortedByReturn.slice(0, 5).map((p) => ({
     ticker: p.ticker,
-    return: p.pred_return * 100,
+    return: (p.pred_return ?? 0) * 100,
   }));
   const bottomReturnTickers = sortedByReturn.slice(-5).map((p) => ({
     ticker: p.ticker,
-    return: p.pred_return * 100,
+    return: (p.pred_return ?? 0) * 100,
   }));
 
   // Return distribution (bins)
   const returnBins = createBins(
-    predictions.map((p) => p.pred_return * 100),
+    predictions.map((p) => (p.pred_return ?? 0) * 100),
     5
   );
 
@@ -109,7 +138,7 @@ export default function Statistics({ runId }: StatisticsProps) {
   // Scatter data: confidence vs absolute return
   const scatterData = predictions.map((p) => ({
     x: p.graph_gate ?? 0,
-    y: Math.abs(p.pred_return) * 100,
+    y: Math.abs(p.pred_return ?? 0) * 100,
     ticker: p.ticker,
   }));
 
