@@ -131,11 +131,12 @@ export default function TickerDetail() {
     ? priceHistory.reduce((sum, p) => sum + p.close, 0) / priceHistory.length 
     : 0;
 
-  const latestPred = latestPrediction?.pred_close ?? null;
+  // Note: latestPrediction.pred_close is a single value (today's prediction)
+  // Not a time series, so don't mix it with historical price data
+  // Use predictionTrendData chart instead to see prediction evolution over runs
   const mergedChartData = priceHistory.map((p) => ({
     date: p.date,
     close: p.close,
-    pred_close: latestPred,
   }));
 
   // Prediction trend: reverse so oldest is first
@@ -254,11 +255,11 @@ export default function TickerDetail() {
 
       {/* ===== MAIN CHARTS ===== */}
       <div className="space-y-6">
-        {/* Actual vs Predicted Price */}
+        {/* Actual Price History */}
         <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Target className="w-5 h-5 text-blue-600" />
-            Actual vs Predicted Price
+            Price History
           </h2>
           <div className="h-[380px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -276,20 +277,12 @@ export default function TickerDetail() {
                   dot={false}
                   name="Actual Price"
                 />
-                {latestPred && (
-                  <Line
-                    type="monotone"
-                    dataKey="pred_close"
-                    stroke="#e10f21"
-                    strokeDasharray="5 5"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Predicted Price"
-                  />
-                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            30-day historical price data. See "Prediction Trend" chart below to compare predictions across runs.
+          </p>
         </div>
 
         {/* Prediction Trend */}

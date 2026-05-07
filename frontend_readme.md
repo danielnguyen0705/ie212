@@ -141,8 +141,8 @@ docker compose --env-file compose/.env -f compose/compose.yaml down
 docker compose --env-file compose/.env -f compose/compose.yaml up -d postgres kafka minio spark-master spark-worker
 docker compose --env-file compose/.env -f compose/compose.yaml --profile producer up -d --build
 docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-init
-docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-webserver airflow-scheduler airflow-worker airflow-triggerer
-docker compose --env-file compose/.env -f compose/compose.yaml up -d inference api
+docker compose --env-file compose/.env -f compose/compose.yaml up -d airflow-apiserver airflow-scheduler airflow-triggerer airflow-dag-processor
+docker compose --env-file compose/.env -f compose/compose.yaml up -d ml-infer fastapi
 
 # Khởi động frontend
 cd frontend
