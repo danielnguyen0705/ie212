@@ -11,6 +11,7 @@ import torch
 from torch.utils.data import DataLoader
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+import _path_setup
 from src.artifacts import save_model_checkpoint, save_json, build_run_metadata
 
 from src.config import (

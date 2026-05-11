@@ -1,6 +1,7 @@
 # scripts/test_model_forward.py
 
 import torch
+import _path_setup
 
 from src.models import LSTMOnlyModel, HybridLSTMGNNGraphGate
 from src.config import LSTM_HIDDEN, GNN_HIDDEN, MLP_HIDDEN, DROPOUT, FEATURE_COLS

@@ -1,5 +1,7 @@
 # scripts/test_prepare_step.py
 
+import _path_setup
+
 from src.config import (
     TICKERS,
     START_DATE,

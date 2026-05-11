@@ -84,6 +84,34 @@ services:
       start_period: 20s
     networks:
       - bigdata_net
+
+  stock-producer:
+    build:
+      context: ..
+      dockerfile: services/producer/Dockerfile
+    container_name: ie212-stock-producer
+    restart: unless-stopped
+    profiles: ["producer"]
+    working_dir: /workspace
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      IE212_KAFKA_BOOTSTRAP_SERVERS: ${IE212_KAFKA_BOOTSTRAP_SERVERS}
+      IE212_KAFKA_TOPIC: ${IE212_KAFKA_TOPIC}
+      IE212_PRODUCER_INTERVAL_SECONDS: ${IE212_PRODUCER_INTERVAL_SECONDS}
+      IE212_PRODUCER_SOURCE: ${IE212_PRODUCER_SOURCE}
+      IE212_PRODUCER_CSV_DIR: ${IE212_PRODUCER_CSV_DIR}
+      IE212_PRODUCER_TICKERS: ${IE212_PRODUCER_TICKERS}
+      IE212_PRODUCER_MAX_ITERATIONS: ${IE212_PRODUCER_MAX_ITERATIONS}
+      IE212_PRODUCER_CLIENT_ID: ${IE212_PRODUCER_CLIENT_ID}
+      IE212_PRODUCER_CONNECT_RETRIES: ${IE212_PRODUCER_CONNECT_RETRIES}
+      IE212_PRODUCER_RETRY_DELAY_SECONDS: ${IE212_PRODUCER_RETRY_DELAY_SECONDS}
+    command: ["python", "scripts/publish_stock_ticks.py"]
+    volumes:
+      - ..:/workspace
+    networks:
+      - bigdata_net
   
   spark-master:
     image: ${SPARK_IMAGE}
