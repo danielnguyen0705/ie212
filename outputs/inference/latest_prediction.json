@@ -1,6 +1,6 @@
 {
-  "checkpoint": "/workspace/models/hybrid_expanding_best_full.pt",
-  "input_npz": "/workspace/data/inference/latest_window.npz",
+  "checkpoint": "models\\hybrid_expanding_best_full.pt",
+  "input_npz": "data\\inference\\latest_window.npz",
   "as_of_date": "2023-12-29",
   "device": "cpu",
   "model_dims": {

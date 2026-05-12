@@ -6,10 +6,10 @@
     "Directional_Accuracy": 0.532
   },
   "lstm_metrics": {
-    "MSE": 0.0009251811425201595,
-    "MAE": 0.021643320098519325,
-    "RMSE": 0.030416790470399066,
-    "Directional_Accuracy": 0.568
+    "MSE": 0.0009276724886149168,
+    "MAE": 0.021688472479581833,
+    "RMSE": 0.030457716405123295,
+    "Directional_Accuracy": 0.562
   },
   "hybrid_metrics": {
     "MSE": 0.0009168647811748087,
