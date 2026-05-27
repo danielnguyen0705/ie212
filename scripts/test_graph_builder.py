@@ -1,6 +1,7 @@
 # scripts/test_graph_builder.py
 
 import numpy as np
+import _path_setup
 
 from src.config import (
     TICKERS,

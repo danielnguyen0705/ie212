@@ -1,5 +1,7 @@
 # scripts/test_expanding_data.py
 
+import _path_setup
+
 from src.config import (
     TICKERS, START_DATE, END_DATE, FEATURE_COLS,
     TARGET_IDX, LOOKBACK, EXP_TEST_DAYS, EXP_INITIAL_TRAIN_DAYS

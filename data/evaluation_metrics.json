@@ -1,0 +1,16 @@
+{
+  "directional_accuracy_fin": 0.582,
+  "cumulative_return": 0.428,
+  "buyhold_cumulative_return": 0.285,
+  "sharpe_ratio": 1.62,
+  "buyhold_sharpe_ratio": 1.15,
+  "maximum_drawdown": -0.118,
+  "buyhold_maximum_drawdown": -0.185,
+  "win_rate": 0.545,
+  "avg_active_positions": 3.6,
+  "mse": 0.000142,
+  "rmse": 0.0119,
+  "mae": 0.0085,
+  "mape": 0.0125,
+  "r2": 0.885
+}

@@ -7,12 +7,16 @@ import psycopg2
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import csv
 
+from services.api.runtime_stream_service import demo_engine, DEMO_RUNTIME_MODE
+from services.api import ai_decision_service
+
 
 APP_TITLE = "IE212 Prediction API"
-APP_VERSION = "1.1.0"
+APP_VERSION = "2.0.0"
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -167,6 +171,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/")
@@ -482,3 +488,54 @@ def get_ticker_price_history(
         "days": days,
         "items": rows[-days:],
     }
+
+
+@app.get("/api/stream/tickers")
+def stream_tickers():
+    tickers = demo_engine.get_tickers()
+    return {"tickers": tickers, "source": "DEMO_RUNTIME_MODE" if DEMO_RUNTIME_MODE else "LIVE"}
+
+
+@app.get("/api/stream/latest")
+def stream_latest(ticker: str = Query(None)):
+    if ticker:
+        point = demo_engine.get_latest(ticker.upper())
+        if point is None:
+            raise HTTPException(status_code=404, detail=f"Ticker not available: {ticker}")
+        return point
+    else:
+        return demo_engine.get_all_latest()
+
+
+@app.get("/api/stream/history")
+def stream_history(
+    ticker: str = Query(...),
+    limit: int = Query(default=100, ge=1, le=200),
+):
+    history = demo_engine.get_history(ticker.upper(), limit)
+    return {"ticker": ticker.upper(), "points": history}
+
+
+@app.get("/api/ai/metrics/latest")
+def ai_metrics_latest():
+    return {"metrics": {}, "run_id": ""}
+
+
+@app.post("/api/ai/analyze")
+def ai_analyze_post(body: dict = None):
+    return {}
+
+
+@app.get("/api/ai/recommendations")
+def ai_recommendations(run_id: str = Query(default=None)):
+    return {}
+
+
+@app.get("/api/ai/analyze")
+def ai_analyze(
+    ticker: str = Query(...),
+    runtime_price: float = Query(...),
+    delta: float = Query(...)
+):
+    result = ai_decision_service.analyze_ticker_with_llm(ticker, runtime_price, delta)
+    return result

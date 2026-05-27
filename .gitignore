@@ -1,4 +1,4 @@
-# Virtual environment
+# Virtual environments
 .venv/
 venv/
 env/
@@ -12,44 +12,39 @@ __pycache__/
 .mypy_cache/
 .ipynb_checkpoints/
 
-# Jupyter
-.ipynb_checkpoints/
-*.nbconvert.ipynb
-
-# VS Code
+# Editor / OS files
 .vscode/
-
-# OS files
 .DS_Store
 Thumbs.db
 
 # Logs
 *.log
+airflow/logs/*
+!airflow/logs/.gitkeep
 
 # Environment variables
 .env
 .env.*
+!*.env.example
 
-# Build / package
+# Build / packaging
 build/
 dist/
 *.egg-info/
 
-# Model / data artifacts
-models/
-checkpoints/
-artifacts/
-data/raw/
-data/processed/
+# Generated project artifacts
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+models/*
+!models/.gitkeep
+services/spark/out/*
+!services/spark/out/.gitkeep
+outputs/*.csv
+outputs/*.parquet
+outputs/*.pkl
+outputs/*.joblib
 
-# Notebook outputs / large temp files
-*.csv
-*.parquet
-*.pkl
-*.joblib
-*.pt
-*.pth
-
-# Optional: ignore notebook output-heavy files
-# Uncomment if you do not want to track notebooks at all
-# *.ipynb
+# Optional large notebook exports
+*.nbconvert.ipynb

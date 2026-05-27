@@ -12,6 +12,36 @@ PARQUET_DIR = env("IE212_PARQUET_LOCAL_DIR", "/opt/airflow/shared/spark_out/kafk
 RUNTIME_ENV = airflow_runtime_env()
 
 
+def ensure_audit_table():
+    conn = get_pg_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("CREATE SCHEMA IF NOT EXISTS stock;")
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS stock.pipeline_audit (
+                        id BIGSERIAL PRIMARY KEY,
+                        run_id TEXT NOT NULL,
+                        checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        kafka_ok BOOLEAN NOT NULL DEFAULT FALSE,
+                        spark_ok BOOLEAN NOT NULL DEFAULT FALSE,
+                        minio_ok BOOLEAN NOT NULL DEFAULT FALSE,
+                        postgres_ok BOOLEAN NOT NULL DEFAULT FALSE,
+                        parquet_local_ok BOOLEAN NOT NULL DEFAULT FALSE,
+                        kafka_ticks_count INTEGER NOT NULL DEFAULT 0,
+                        parquet_files_count INTEGER NOT NULL DEFAULT 0,
+                        has_success_marker BOOLEAN NOT NULL DEFAULT FALSE,
+                        missing_tables TEXT,
+                        notes TEXT
+                    );
+                    """
+                )
+        print("Audit table is ready.")
+    finally:
+        conn.close()
+
+
 def validate_batch_postgres():
     conn = get_pg_conn()
     try:
@@ -68,9 +98,6 @@ def write_audit(**context):
     try:
         with conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM stock.kafka_ticks;")
-                kafka_ticks_count = cur.fetchone()[0]
-
                 cur.execute("SELECT COUNT(*) FROM stock.kafka_ticks_batch;")
                 batch_count = cur.fetchone()[0]
 
@@ -98,7 +125,7 @@ def write_audit(**context):
                         True,
                         True,
                         True,
-                        int(kafka_ticks_count),
+                        int(batch_count),
                         int(len(parquet_files)),
                         bool(has_success),
                         "",
@@ -117,6 +144,11 @@ with DAG(
     catchup=False,
     tags=["ie212", "spark", "orchestration", "exec"],
 ) as dag:
+    ensure_audit = PythonOperator(
+        task_id="ensure_audit_table",
+        python_callable=ensure_audit_table,
+    )
+
     spark_batch_to_postgres = BashOperator(
         task_id="spark_batch_to_postgres",
         env=RUNTIME_ENV,
@@ -174,5 +206,5 @@ docker exec "$IE212_MINIO_CLIENT_CONTAINER" \
         python_callable=write_audit,
     )
 
-    spark_batch_to_postgres >> validate_batch_db
+    ensure_audit >> spark_batch_to_postgres >> validate_batch_db
     validate_batch_db >> spark_batch_to_parquet >> validate_parquet >> upload_parquet_to_minio >> write_pipeline_audit
