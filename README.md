@@ -1,4 +1,4 @@
-# Hệ Thống Dự Báo Giá Đóng Cửa Cổ Phiếu - IE212
+# NGHIÊN CỨU SO SÁNH CÁC MÔ HÌNH HỌC MÁY, HỌC SÂU ĐƠN THUẦN VÀ MÔ HÌNH HYBRID LSTM - GRAPH NEURAL NETWORK TRONG VIỆC XÂY DỰNG HỆ THỐNG DỰ BÁO GIÁ ĐÓNG CỬA CỔ PHIẾU TRÊN KIẾN TRÚC DỮ LIỆU LỚN
 
 Hệ thống thu thập, xử lý trực tuyến và dự báo giá cổ phiếu thời gian thực sử dụng kiến trúc Big Data kết hợp mô hình học sâu **LSTM-GNN (Graph-Gate)**.
 
