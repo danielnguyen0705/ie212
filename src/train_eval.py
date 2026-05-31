@@ -6,30 +6,63 @@ import torch
 import torch.nn as nn
 
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from src.evaluation import compute_full_evaluation
 
 
 def compute_metrics(y_true: np.ndarray,
                     y_pred: np.ndarray,
                     last_close: np.ndarray,
                     eps: float = 0.0):
-    y_true_f = y_true.reshape(-1)
-    y_pred_f = y_pred.reshape(-1)
-    last_f = last_close.reshape(-1)
+    """
+    Tính toán các chỉ số đánh giá bằng cách tích hợp module evaluation toàn diện.
+    y_true, y_pred, last_close có shape: [num_samples, num_stocks]
+    """
+    # Nếu là 1D (đã flatten), ta đưa về shape [N, 1] hoặc giữ nguyên
+    if y_true.ndim == 1:
+        # Giả sử đây là batch dẹt, đưa về 2D để tương thích
+        y_true_2d = y_true.reshape(-1, 1)
+        y_pred_2d = y_pred.reshape(-1, 1)
+        last_2d = last_close.reshape(-1, 1)
+    else:
+        y_true_2d = y_true
+        y_pred_2d = y_pred
+        last_2d = last_close
 
-    mse = mean_squared_error(y_true_f, y_pred_f)
-    mae = mean_absolute_error(y_true_f, y_pred_f)
-    rmse = float(np.sqrt(mse))
+    # Gọi hàm tính toán toàn diện trong src/evaluation.py
+    eval_dict = compute_full_evaluation(
+        y_true=y_true_2d,
+        y_pred=y_pred_2d,
+        last_close=last_2d,
+        risk_free_rate=0.0,
+        direction_eps=eps
+    )
 
-    true_up = (y_true_f - last_f) > eps
-    pred_up = (y_pred_f - last_f) > eps
-    directional_accuracy = float((true_up == pred_up).mean())
+    # Đảm bảo các key truyền thống (MSE, MAE, RMSE, Directional_Accuracy) tồn tại
+    # để không làm gãy các code gọi cũ
+    eval_dict["MSE"] = eval_dict["MSE"]
+    eval_dict["MAE"] = eval_dict["MAE"]
+    eval_dict["RMSE"] = eval_dict["RMSE"]
+    eval_dict["Directional_Accuracy"] = eval_dict["Directional_Accuracy"]
 
-    return {
-        "MSE": float(mse),
-        "MAE": float(mae),
-        "RMSE": float(rmse),
-        "Directional_Accuracy": directional_accuracy
-    }
+    return eval_dict
+
+
+def compute_model_loss(model, pred_close, y_close, last_close, eps=0.0):
+    mse_loss = nn.functional.mse_loss(pred_close, y_close)
+
+    direction_weight = float(getattr(model, "direction_loss_weight", 0.0))
+    if direction_weight <= 0:
+        return mse_loss
+
+    logit_scale = float(getattr(model, "direction_logit_scale", 50.0))
+    direction_target = (y_close - last_close > eps).float()
+    direction_logits = (pred_close - last_close) * logit_scale
+    direction_loss = nn.functional.binary_cross_entropy_with_logits(
+        direction_logits,
+        direction_target
+    )
+
+    return mse_loss + direction_weight * direction_loss
 
 
 def train_one_epoch(model, loader, optimizer, criterion, device):
@@ -52,7 +85,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
 
         optimizer.zero_grad()
         pred_close = model(seq, node_x, adj, last_close)
-        loss = criterion(pred_close, y_close)
+        loss = compute_model_loss(model, pred_close, y_close, last_close)
         loss.backward()
         optimizer.step()
 
@@ -81,7 +114,7 @@ def evaluate_loss(model, loader, criterion, device):
         last_close = last_close.to(device)
 
         pred_close = model(seq, node_x, adj, last_close)
-        loss = criterion(pred_close, y_close)
+        loss = compute_model_loss(model, pred_close, y_close, last_close)
         total_loss += loss.item() * y_close.size(0)
 
     return total_loss / len(loader.dataset)
@@ -126,10 +159,10 @@ def fit_model_silent(model, train_loader, val_loader, epochs, lr, patience, devi
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
 
     best_state = None
-    best_val = float("inf")
+    best_val = evaluate_loss(model, val_loader, criterion, device)
     wait = 0
 
-    history = {"train_loss": [], "val_loss": []}
+    history = {"train_loss": [], "val_loss": [], "initial_val_loss": best_val}
 
     for epoch in range(1, epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, criterion, device)
@@ -150,7 +183,8 @@ def fit_model_silent(model, train_loader, val_loader, epochs, lr, patience, devi
             if wait >= patience:
                 break
 
-    model.load_state_dict(best_state)
+    if best_state is not None:
+        model.load_state_dict(best_state)
     return model, history
 
 
@@ -189,3 +223,34 @@ def predict_model_graph_gate(model, loader, device):
     gates = np.concatenate(gates, axis=0)
 
     return preds, trues, lasts, gates
+
+
+def initialize_hybrid_from_lstm_model(hybrid_model, lstm_model):
+    """
+    Sao chép trọng số phần LSTM từ lstm_model sang hybrid_model
+    để hybrid_model có điểm khởi đầu tốt.
+    """
+    hybrid_state = hybrid_model.state_dict()
+    lstm_state = lstm_model.state_dict()
+
+    for k, v in lstm_state.items():
+        if k in hybrid_state and v.shape == hybrid_state[k].shape:
+            hybrid_state[k] = copy.deepcopy(v)
+
+    hybrid_model.load_state_dict(hybrid_state)
+    return hybrid_model
+
+
+def initialize_graph_gate_from_no_gate(gate_model, no_gate_model):
+    """
+    Sao chép toàn bộ trọng số từ no_gate_model sang gate_model.
+    """
+    gate_state = gate_model.state_dict()
+    no_gate_state = no_gate_model.state_dict()
+
+    for k, v in no_gate_state.items():
+        if k in gate_state and v.shape == gate_state[k].shape:
+            gate_state[k] = copy.deepcopy(v)
+
+    gate_model.load_state_dict(gate_state)
+    return gate_model

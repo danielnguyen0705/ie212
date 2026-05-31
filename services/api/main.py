@@ -172,7 +172,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+class NoCacheStaticFiles(StaticFiles):
+    def is_not_modified(self, response_headers, request_headers) -> bool:
+        return False
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        return response
+
+app.mount("/static", NoCacheStaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/")
@@ -197,7 +206,7 @@ def dashboard():
     dashboard_file = STATIC_DIR / "index.html"
     if not dashboard_file.exists():
         raise HTTPException(status_code=404, detail="Dashboard file not found.")
-    return FileResponse(dashboard_file)
+    return FileResponse(dashboard_file, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
 
 
 @app.get("/health")

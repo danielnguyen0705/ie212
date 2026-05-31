@@ -12,6 +12,7 @@ try:
 except ImportError:
     import _path_setup  # type: ignore
 
+from src.rolling_scaler import RollingMinMaxScaler
 from scripts.build_latest_inference_bundle import (
     FEATURE_COLS,
     LOOKBACK,
@@ -185,6 +186,7 @@ def main():
     parser.add_argument("--data-dir", default="data/raw", help="Directory containing raw CSV files")
     parser.add_argument("--output", default="data/inference/kafka_latest_window.npz", help="Output npz bundle")
     parser.add_argument("--lookback", type=int, default=LOOKBACK, help="Model lookback window")
+    parser.add_argument("--window-size", type=int, default=60, help="Số ngày cửa sổ trượt scaler")
     parser.add_argument("--minio-endpoint", required=True, help="MinIO endpoint URL")
     parser.add_argument("--minio-access-key", required=True, help="MinIO access key")
     parser.add_argument("--minio-secret-key", required=True, help="MinIO secret key")
@@ -245,30 +247,36 @@ def main():
     for ticker in tickers:
         data_dict[ticker] = data_dict[ticker].loc[common_index].copy()
 
+    # 1. Build raw tensor
     full_node_3d = np.stack(
         [data_dict[t][FEATURE_COLS].values.astype(np.float32) for t in tickers],
         axis=1,
     )
-    close_only_3d = np.stack(
-        [data_dict[t][["Close"]].values.astype(np.float32) for t in tickers],
-        axis=1,
-    )
+
+    # 2. Áp dụng Rolling MinMaxScaler
+    scaler = RollingMinMaxScaler(window_size=args.window_size)
+    scaled_node_3d = scaler.fit_transform(full_node_3d, close_idx=TARGET_IDX)
+
+    # Lấy Close-only scaled tensor
+    scaled_close_only_3d = scaled_node_3d[:, :, TARGET_IDX:TARGET_IDX + 1]
+
     return_2d = np.stack(
         [data_dict[t]["Return"].values.astype(np.float32) for t in tickers],
         axis=1,
     )
 
     t_last = len(common_index) - 1
-    seq = close_only_3d[t_last - args.lookback + 1:t_last + 1, :, :]
+    seq = scaled_close_only_3d[t_last - args.lookback + 1:t_last + 1, :, :]
     seq = np.transpose(seq, (1, 0, 2))
 
-    node_x = full_node_3d[t_last, :, :]
-    last_close = full_node_3d[t_last, :, TARGET_IDX]
+    node_x = scaled_node_3d[t_last, :, :]
+    last_close = scaled_node_3d[t_last, :, TARGET_IDX]
 
     train_start_t = max(0, t_last - (252 * 2) + 1)
     train_end_t = t_last
-    adj_norm, adj_raw = build_combined_graph_from_train_window(
+    adj_norm, adj_raw, _, _ = build_combined_graph_from_train_window(
         return_2d=return_2d,
+        tickers=tickers,
         train_start_t=train_start_t,
         train_end_t=train_end_t,
     )
@@ -277,6 +285,9 @@ def main():
     x_node = np.expand_dims(node_x.astype(np.float32), axis=0)
     adj = np.expand_dims(adj_norm.astype(np.float32), axis=0)
     last_close = np.expand_dims(last_close.astype(np.float32), axis=0)
+
+    # Lấy các tham số scaler động để save vào npz
+    scaler_params = scaler.get_scaler_params()
 
     effective_as_of_date = max(last_event_dates).date().isoformat() if last_event_dates else str(common_index[t_last].date())
 
@@ -293,10 +304,11 @@ def main():
         feature_cols=np.array(FEATURE_COLS, dtype=object),
         minio_bucket=np.array(args.minio_bucket, dtype=object),
         minio_prefix=np.array(args.minio_prefix, dtype=object),
+        **scaler_params
     )
 
     print("=" * 80)
-    print(f"Saved MinIO-driven inference bundle to: {out_path}")
+    print(f"Saved MinIO-driven inference bundle (with Rolling Scaler) to: {out_path}")
     print(f"tickers_used: {tickers}")
     print(f"as_of_date: {effective_as_of_date}")
     print(f"X_seq shape: {x_seq.shape}")

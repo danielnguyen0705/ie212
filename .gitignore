@@ -48,3 +48,6 @@ outputs/*.joblib
 
 # Optional large notebook exports
 *.nbconvert.ipynb
+notebook-predictionv10.ipynb
+notebook-predictionv10-fixed.ipynb
+notebook-predictionv10-1.ipynb

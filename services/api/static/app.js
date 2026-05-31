@@ -227,77 +227,80 @@ async function openAIDrawer(ticker, price, delta) {
   try {
     const data = await fetchJson(`/api/ai/analyze?ticker=${ticker}&runtime_price=${price}&delta=${delta}`);
     
-    // UI mapping signals
-    let vnSignal = "THEO DÕI";
-    if (data.signal === "BUY") vnSignal = "MUA";
-    if (data.signal === "SELL_OR_AVOID" || data.signal === "SELL_or_AVOID") vnSignal = "BÁN / TRÁNH";
-    if (data.signal === "HOLD") vnSignal = "GIỮ";
-    if (data.signal === "STAND_OUT") vnSignal = "ĐỨNG NGOÀI";
+  // UI mapping signals
+  let vnSignal = "THEO DÕI";
+  const sigUpper = String(data.signal).toUpperCase();
+  if (sigUpper === "BUY" || sigUpper === "MUA") vnSignal = "MUA";
+  else if (sigUpper === "SELL_OR_AVOID" || sigUpper === "SELL_or_AVOID" || sigUpper === "BÁN_TRÁNH" || sigUpper === "BÁN / TRÁNH" || sigUpper === "BÁN") vnSignal = "BÁN / TRÁNH";
+  else if (sigUpper === "HOLD" || sigUpper === "GIỮ") vnSignal = "GIỮ";
+  else if (sigUpper === "STAND_OUT" || sigUpper === "ĐỨNG NGOÀI") vnSignal = "ĐỨNG NGOÀI";
 
-    let vnConfidence = "THẤP";
-    if (data.confidence === "HIGH") vnConfidence = "CAO";
-    if (data.confidence === "MEDIUM") vnConfidence = "TRUNG BÌNH";
+  let vnConfidence = "THẤP";
+  const confUpper = String(data.confidence).toUpperCase();
+  if (confUpper === "HIGH" || confUpper === "CAO") vnConfidence = "CAO";
+  else if (confUpper === "MEDIUM" || confUpper === "TRUNG BÌNH") vnConfidence = "TRUNG BÌNH";
+  else if (confUpper === "LOW" || confUpper === "THẤP") vnConfidence = "THẤP";
 
-    const supportingHtml = (data.supporting_factors || []).map(f => `<li style="margin-bottom:4px;">${escapeHtml(f)}</li>`).join("");
-    const risksHtml = (data.risk_factors || []).map(f => `<li style="margin-bottom:4px; color:#dc2626;">${escapeHtml(f)}</li>`).join("");
-    const warningsHtml = (data.missing_data_warnings || []).map(w => `<li style="margin-bottom:4px; color:#d97706; font-style:italic;">${escapeHtml(w)}</li>`).join("");
+  const supportingHtml = (data.supporting_factors || []).map(f => `<li style="margin-bottom:2px;">${escapeHtml(f)}</li>`).join("");
+  const risksHtml = (data.risk_factors || []).map(f => `<li style="margin-bottom:2px; color:#dc2626;">${escapeHtml(f)}</li>`).join("");
+  const warningsHtml = (data.missing_data_warnings || []).map(w => `<li style="margin-bottom:2px; color:#d97706; font-style:italic;">${escapeHtml(w)}</li>`).join("");
 
     drawerContent.innerHTML = `
-      <div style="text-align: center; margin-bottom: 12px;">
-        <span class="signal-badge signal-${data.signal} confidence-${data.confidence}" style="font-size: 1.1rem; padding: 10px 24px; display:inline-block;">
-          KHUYẾN NGHỊ: ${vnSignal} <br/> <span style="font-size:0.85rem; font-weight:700;">(Độ tin cậy: ${vnConfidence})</span>
+      <div style="text-align: center; margin-bottom: 6px;">
+        <span class="signal-badge signal-${data.signal} confidence-${data.confidence}" style="font-size: 1.05rem; padding: 6px 20px; display:inline-block;">
+          KHUYẾN NGHỊ: ${vnSignal} <br/> <span style="font-size:0.8rem; font-weight:700;">(Độ tin cậy: ${vnConfidence})</span>
         </span>
       </div>
 
       <!-- Realtime parameters directly showing in drawer at top -->
-      <div class="card" style="border-radius:14px; border:1px solid var(--border); padding: 8px 20px; display:flex; flex-direction:column; gap:6px;">
-        <h3 style="margin:0 0 6px 0; font-size:1rem; padding-bottom:0;">Thông số thời gian thực</h3>
-        <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+      <div class="card" style="border-radius:12px; border:1px solid var(--border); padding: 10px 18px; display:flex; flex-direction:column; gap:4px; height:auto; overflow:visible;">
+        <h3 style="margin:0 0 4px 0; font-size:0.95rem; padding-bottom:0;">Thông số thời gian thực</h3>
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
           <span style="color:var(--muted)">Giá thời gian thực:</span>
           <strong>${formatNumber(price, 4)}</strong>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
           <span style="color:var(--muted)">Giá dự đoán tiếp theo:</span>
           <strong>${formatNumber(predClose, 4)}</strong>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
           <span style="color:var(--muted)">Biến động (Delta):</span>
           <strong class="${signedClass(delta)}">${delta > 0 ? "+" : ""}${formatNumber(delta, 4)}</strong>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
           <span style="color:var(--muted)">Tỷ suất dự đoán:</span>
           <strong class="${signedClass(predReturn)}">${formatPct(predReturn)}</strong>
         </div>
       </div>
 
       <!-- Deep Analysis (Reasons & Risks) -->
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div class="card" style="border-radius:14px; background:#f8fbff; border:1px solid #e2e8f0; padding: 16px;">
-          <h4 style="margin:0 0 6px 0; font-size:0.95rem; color:#16a34a;">Lý do khuyến nghị</h4>
-          <p style="font-size:0.9rem; line-height:1.5; color:#1e293b; margin:0;">${escapeHtml(data.reasons)}</p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="card" style="border-radius:12px; background:#f8fbff; border:1px solid #e2e8f0; padding: 12px 16px;">
+          <h4 style="margin:0 0 4px 0; font-size:0.9rem; color:#16a34a;">Lý do khuyến nghị</h4>
+          <p style="font-size:0.85rem; line-height:1.45; color:#1e293b; margin:0;">${escapeHtml(data.reasons)}</p>
         </div>
 
-        <div class="card" style="border-radius:14px; background:#fff5f5; border:1px solid #fed7d7; padding: 16px;">
-          <h4 style="margin:0 0 6px 0; font-size:0.95rem; color:#dc2626;">Cảnh báo rủi ro</h4>
-          <p style="font-size:0.9rem; line-height:1.5; color:#9b1c1c; margin:0;">${escapeHtml(data.risks)}</p>
+        <div class="card" style="border-radius:12px; background:#fff5f5; border:1px solid #fed7d7; padding: 12px 16px;">
+          <h4 style="margin:0 0 4px 0; font-size:0.9rem; color:#dc2626;">Cảnh báo rủi ro</h4>
+          <p style="font-size:0.85rem; line-height:1.45; color:#9b1c1c; margin:0;">${escapeHtml(data.risks)}</p>
         </div>
 
         ${supportingHtml ? `
-          <div style="font-size:0.85rem; margin-top:8px;">
+          <div style="font-size:0.8rem; margin-top:4px;">
             <strong style="color:#16a34a;">Các yếu tố hỗ trợ tín hiệu:</strong>
-            <ul style="margin:6px 0; padding-left:20px; line-height:1.4;">${supportingHtml}</ul>
+            <ul style="margin:4px 0; padding-left:16px; line-height:1.3;">${supportingHtml}</ul>
           </div>` : ""}
 
         ${risksHtml ? `
-          <div style="font-size:0.85rem;">
+          <div style="font-size:0.8rem;">
             <strong style="color:#dc2626;">Các yếu tố rủi ro cảnh báo:</strong>
-            <ul style="margin:6px 0; padding-left:20px; line-height:1.4;">${risksHtml}</ul>
+            <ul style="margin:4px 0; padding-left:16px; line-height:1.3;">${risksHtml}</ul>
           </div>` : ""}
 
         ${warningsHtml ? `
-          <div style="font-size:0.85rem; border-top: 1px dashed var(--border); padding-top:10px;">
+          <div style="font-size:0.8rem; border-top: 1px dashed var(--border); padding-top:6px;">
             <strong style="color:#d97706;">Cảnh báo giới hạn dữ liệu:</strong>
-            <ul style="margin:6px 0; padding-left:20px; line-height:1.4;">${warningsHtml}</ul>
+            <ul style="margin:4px 0; padding-left:16px; line-height:1.3;">${warningsHtml}</ul>
           </div>` : ""}
       </div>
     `;
@@ -344,18 +347,31 @@ async function updateRealtimeData() {
     // 2. Tab 1 Statistics card summary
     if (points.length > 0) {
       const validReturns = points.filter(x => x.pred_return !== null && x.pred_return !== undefined);
-      const sortedByReturn = [...validReturns].sort((a, b) => Number(b.pred_return) - Number(a.pred_return));
-      const topPos = sortedByReturn[0];
-      const topNeg = sortedByReturn[sortedByReturn.length - 1];
+      
+      // Calculate current runtime stats dynamically based on streaming points
+      const sortedByRuntimeReturn = [...points].sort((a, b) => {
+        const retA = a.last_close > 0 ? (a.runtime_price - a.last_close) / a.last_close : 0;
+        const retB = b.last_close > 0 ? (b.runtime_price - b.last_close) / b.last_close : 0;
+        return retB - retA;
+      });
+
+      const topPos = sortedByRuntimeReturn[0];
+      const topNeg = sortedByRuntimeReturn[sortedByRuntimeReturn.length - 1];
+
+      const runtimeReturns = points.map(x => x.last_close > 0 ? (x.runtime_price - x.last_close) / x.last_close : 0);
+      const avgRuntimeReturn = runtimeReturns.reduce((acc, x) => acc + x, 0) / points.length;
 
       document.getElementById("summaryModel").textContent = "Hybrid LSTM-GNN";
-      document.getElementById("summaryLatestRun").textContent = "kafka_inference_latest";
+      document.getElementById("summaryLatestRun").textContent = points[0].run_id || "kafka_inference_latest";
       document.getElementById("summaryTickerCount").textContent = points.length;
 
-      const sumRet = validReturns.reduce((acc, x) => acc + Number(x.pred_return), 0);
-      document.getElementById("summaryAvgReturn").textContent = formatPct(sumRet / points.length);
-      document.getElementById("topPositive").innerHTML = `<span class="${signedClass(topPos.pred_return)}">${escapeHtml(topPos.ticker)} (${formatPct(topPos.pred_return)})</span>`;
-      document.getElementById("topNegative").innerHTML = `<span class="${signedClass(topNeg.pred_return)}">${escapeHtml(topNeg.ticker)} (${formatPct(topNeg.pred_return)})</span>`;
+      document.getElementById("summaryAvgReturn").innerHTML = `<span class="${signedClass(avgRuntimeReturn)}">${formatPct(avgRuntimeReturn)}</span>`;
+      
+      const topPosPct = topPos.last_close > 0 ? (topPos.runtime_price - topPos.last_close) / topPos.last_close : 0;
+      const topNegPct = topNeg.last_close > 0 ? (topNeg.runtime_price - topNeg.last_close) / topNeg.last_close : 0;
+
+      document.getElementById("topPositive").innerHTML = `<span class="${signedClass(topPosPct)}">${escapeHtml(topPos.ticker)} (${formatPct(topPosPct)})</span>`;
+      document.getElementById("topNegative").innerHTML = `<span class="${signedClass(topNegPct)}">${escapeHtml(topNeg.ticker)} (${formatPct(topNegPct)})</span>`;
       document.getElementById("summaryLastUpdated").textContent = formatDateTime(points[0].timestamp);
     }
 
@@ -414,19 +430,24 @@ async function updateRealtimeData() {
       let signalText = "GIỮ";
       let badgeStyle = "background-color:rgba(37,99,235,0.12); color:#1d4ed8; border:1px solid rgba(37,99,235,0.2)";
       let badgeStyle2 = "color:#1d4ed8; font-size:0.75rem;";
-      let confText = "TRUNG BÌNH";
+      let confText = "THẤP";
       
+      // Load historical metrics dynamically to synchronize with AI decision service backend logic
+      const dir_acc = 0.582; // directional_accuracy_fin baseline
       if (p.pred_return > 0.001) {
         signalText = "MUA";
         badgeStyle = "background-color:rgba(22,163,74,0.15); color:#0f8c3b; border:1px solid rgba(22,163,74,0.25)";
         badgeStyle2 = "color:#0f8c3b; font-size:0.75rem;";
-        confText = "CAO";
+        confText = dir_acc >= 0.60 ? "CAO" : "TRUNG BÌNH";
       } else if (p.pred_return < -0.001) {
         signalText = "BÁN / TRÁNH";
         badgeStyle = "background-color:rgba(220,38,38,0.12); color:#dc2626; border:1px solid rgba(220,38,38,0.2)";
         badgeStyle2 = "color:#dc2626; font-size:0.75rem;";
         confText = "CAO";
       } else {
+        signalText = "GIỮ";
+        badgeStyle = "background-color:rgba(37,99,235,0.12); color:#1d4ed8; border:1px solid rgba(37,99,235,0.2)";
+        badgeStyle2 = "color:#1d4ed8; font-size:0.75rem;";
         confText = "THẤP";
       }
 

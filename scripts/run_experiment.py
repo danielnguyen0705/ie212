@@ -296,6 +296,10 @@ def run_joint_expanding_lstm_hybrid_backtest(
     lstm_metrics = compute_metrics(lstm_trues_all, lstm_preds_all, lstm_lasts_all, eps=DIRECTION_EPS)
     hybrid_metrics = compute_metrics(hybrid_trues_all, hybrid_preds_all, hybrid_lasts_all, eps=DIRECTION_EPS)
 
+    # In báo cáo toàn diện cho Hybrid model ra console
+    from src.evaluation import format_evaluation_report
+    print("\n" + format_evaluation_report(hybrid_metrics))
+
     lstm_step_df = pd.DataFrame(lstm_rows)
     hybrid_step_df = pd.DataFrame(hybrid_rows)
     graph_step_df = pd.DataFrame(graph_rows)

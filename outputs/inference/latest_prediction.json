@@ -1,7 +1,7 @@
 {
   "checkpoint": "/workspace/models/hybrid_expanding_best_full.pt",
   "input_npz": "/workspace/data/inference/latest_window.npz",
-  "as_of_date": "2026-05-27",
+  "as_of_date": "2026-05-31",
   "device": "cpu",
   "model_dims": {
     "seq_input_dim": 1,
@@ -14,73 +14,73 @@
   "predictions": [
     {
       "ticker": "AAPL",
-      "last_close": 309.8599853515625,
-      "pred_close": 309.8584289550781,
-      "pred_return": -5.022902465476902e-06,
-      "graph_gate": 0.0
+      "last_close": 312.05999755859375,
+      "pred_close": 312.2882080078125,
+      "pred_return": 0.0007313031180034544,
+      "graph_gate": 0.1614692509174347
     },
     {
       "ticker": "ADBE",
-      "last_close": 238.4600067138672,
-      "pred_close": 238.4578399658203,
-      "pred_return": -9.086421143462112e-06,
-      "graph_gate": 0.0
+      "last_close": 259.2099914550781,
+      "pred_close": 259.798583984375,
+      "pred_return": 0.002270716981212045,
+      "graph_gate": 0.18977153301239014
     },
     {
       "ticker": "AMD",
-      "last_close": 496.42999267578125,
-      "pred_close": 496.4288330078125,
-      "pred_return": -2.33601511967344e-06,
-      "graph_gate": 0.0
+      "last_close": 516.0999755859375,
+      "pred_close": 516.7639770507812,
+      "pred_return": 0.0012865752688515386,
+      "graph_gate": 0.15038053691387177
     },
     {
       "ticker": "CMCSA",
-      "last_close": 25.174999237060547,
-      "pred_close": 25.17578887939453,
-      "pred_return": 3.136613139681565e-05,
-      "graph_gate": 0.0
+      "last_close": 24.8700008392334,
+      "pred_close": 24.896759033203125,
+      "pred_return": 0.0010759225197738821,
+      "graph_gate": 0.18501465022563934
     },
     {
       "ticker": "COST",
-      "last_close": 1005.9202880859375,
-      "pred_close": 1005.9163818359375,
-      "pred_return": -3.883259982192826e-06,
-      "graph_gate": 0.0
+      "last_close": 956.3200073242188,
+      "pred_close": 956.9696655273438,
+      "pred_return": 0.0006793313934137404,
+      "graph_gate": 0.16380970180034637
     },
     {
       "ticker": "INTC",
-      "last_close": 120.67500305175781,
-      "pred_close": 120.67674255371094,
-      "pred_return": 1.4414766183009114e-05,
-      "graph_gate": 0.0
+      "last_close": 114.68000793457031,
+      "pred_close": 114.80915832519531,
+      "pred_return": 0.0011261805169972227,
+      "graph_gate": 0.16148224472999573
     },
     {
       "ticker": "INTU",
-      "last_close": 307.17999267578125,
-      "pred_close": 307.17730712890625,
-      "pred_return": -8.742583954139584e-06,
-      "graph_gate": 0.0
+      "last_close": 331.5299987792969,
+      "pred_close": 331.9977722167969,
+      "pred_return": 0.001410953576516018,
+      "graph_gate": 0.18998706340789795
     },
     {
       "ticker": "MSFT",
-      "last_close": 412.68499755859375,
-      "pred_close": 412.6813659667969,
-      "pred_return": -8.799912326251648e-06,
-      "graph_gate": 0.0
+      "last_close": 450.239990234375,
+      "pred_close": 450.4342346191406,
+      "pred_return": 0.0004314241048746247,
+      "graph_gate": 0.16639424860477448
     },
     {
       "ticker": "QCOM",
-      "last_close": 229.52999877929688,
-      "pred_close": 229.53005981445312,
-      "pred_return": 2.65913634708324e-07,
-      "graph_gate": 0.0
+      "last_close": 251.02000427246094,
+      "pred_close": 251.2498779296875,
+      "pred_return": 0.0009157583193132853,
+      "graph_gate": 0.16235876083374023
     },
     {
       "ticker": "SBUX",
-      "last_close": 101.52999877929688,
-      "pred_close": 101.53160095214844,
-      "pred_return": 1.578029026716783e-05,
-      "graph_gate": 0.0
+      "last_close": 99.16000366210938,
+      "pred_close": 99.1849365234375,
+      "pred_return": 0.00025144070600364695,
+      "graph_gate": 0.19638743996620178
     }
   ]
 }

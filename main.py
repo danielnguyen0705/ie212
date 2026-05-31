@@ -14,13 +14,18 @@ import platform
 
 def log(message: str, level: str = "INFO"):
     colors = {
-        "INFO": "\033[94m[INFO]\033[0m",
-        "SUCCESS": "\033[92m[SUCCESS]\033[0m",
-        "WARNING": "\033[93m[WARNING]\033[0m",
-        "ERROR": "\033[91m[ERROR]\033[0m"
+        "INFO": "[INFO]",
+        "SUCCESS": "[SUCCESS]",
+        "WARNING": "[WARNING]",
+        "ERROR": "[ERROR]"
     }
     prefix = colors.get(level, f"[{level}]")
-    print(f"{prefix} {message}")
+    try:
+        print(f"{prefix} {message}")
+    except UnicodeEncodeError:
+        # Fallback for systems where sys.stdout encoding does not support full UTF-8 (e.g. cp1252 on windows terminal)
+        safe_msg = message.encode("ascii", "replace").decode("ascii")
+        print(f"{prefix} {safe_msg}")
 
 def check_command(cmd: str) -> bool:
     try:
@@ -64,8 +69,6 @@ def main():
     if not os.path.exists(venv_dir):
         log("Đang tạo môi trường ảo Python Virtual Environment (.venv)...")
         run_cmd([sys.executable, "-m", "venv", venv_dir])
-        log("Đang cập nhật pip...")
-        run_cmd([pip_path, "install", "--upgrade", "pip"])
         log("Đang cài đặt các thư viện phụ thuộc từ requirements.txt...")
         run_cmd([pip_path, "install", "-r", "requirements.txt"])
         log("Đã chuẩn bị xong môi trường Python (.venv)!", "SUCCESS")
