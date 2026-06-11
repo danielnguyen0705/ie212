@@ -1,0 +1,4 @@
+{
+  "error": "Error: Could not find or load main class kafka.tools.GetOffsetShell\nCaused by: java.lang.ClassNotFoundException: kafka.tools.GetOffsetShell",
+  "timestamp": "2026-06-10T16:10:35.805583+00:00"
+}

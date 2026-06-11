@@ -171,6 +171,9 @@ def create_producer(args: argparse.Namespace) -> Any:
                 value_serializer=lambda value: json.dumps(value).encode("utf-8"),
                 key_serializer=lambda key: key.encode("utf-8"),
                 request_timeout_ms=15000,
+                compression_type="gzip",
+                batch_size=16384,
+                linger_ms=10,
             )
             if producer.bootstrap_connected():
                 print(f"[producer] Connected to Kafka on attempt {attempt}: {args.bootstrap_servers}")

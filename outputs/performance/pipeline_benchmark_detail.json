@@ -1,0 +1,97 @@
+{
+  "runs": [
+    {
+      "run_id": "benchmark_20260610_231036_1",
+      "success": true,
+      "error": null,
+      "total_duration_s": 78.6307,
+      "messages_produced": 0,
+      "kafka_batch_rows": 440,
+      "prediction_rows": 10,
+      "data_completeness_pct": 100.0,
+      "kafka_producer_throughput_msg_per_s": 0.0,
+      "spark_processing_throughput_rec_per_s": 10.43,
+      "step_metrics": [
+        {
+          "step": "publish_to_kafka",
+          "component": "kafka_producer",
+          "duration_s": 1.0724,
+          "return_code": 0,
+          "success": true
+        },
+        {
+          "step": "spark_batch_to_postgres",
+          "component": "spark",
+          "duration_s": 19.6497,
+          "return_code": 0,
+          "success": true
+        },
+        {
+          "step": "spark_batch_to_parquet",
+          "component": "spark",
+          "duration_s": 22.5259,
+          "return_code": 0,
+          "success": true
+        },
+        {
+          "step": "sync_parquet_to_minio",
+          "component": "minio",
+          "duration_s": 30.8806,
+          "return_code": 0,
+          "success": true
+        },
+        {
+          "step": "build_kafka_inference_bundle",
+          "component": "ml_inference",
+          "duration_s": 1.4119,
+          "return_code": 0,
+          "success": true
+        },
+        {
+          "step": "run_checkpoint_inference",
+          "component": "ml_inference",
+          "duration_s": 1.8615,
+          "return_code": 0,
+          "success": true
+        },
+        {
+          "step": "save_inference_to_postgres",
+          "component": "postgresql",
+          "duration_s": 0.2204,
+          "return_code": 0,
+          "success": true
+        }
+      ],
+      "timestamps": {
+        "pipeline_start": "2026-06-10T16:10:36.590243+00:00",
+        "publish_to_kafka_start": "2026-06-10T16:10:37.598488+00:00",
+        "publish_to_kafka_end": "2026-06-10T16:10:38.671102+00:00",
+        "spark_batch_to_postgres_start": "2026-06-10T16:10:38.671102+00:00",
+        "spark_batch_to_postgres_end": "2026-06-10T16:10:58.320749+00:00",
+        "spark_batch_to_parquet_start": "2026-06-10T16:10:58.320749+00:00",
+        "spark_batch_to_parquet_end": "2026-06-10T16:11:20.847216+00:00",
+        "sync_parquet_to_minio_start": "2026-06-10T16:11:20.847216+00:00",
+        "sync_parquet_to_minio_end": "2026-06-10T16:11:51.727637+00:00",
+        "build_kafka_inference_bundle_start": "2026-06-10T16:11:51.727637+00:00",
+        "build_kafka_inference_bundle_end": "2026-06-10T16:11:53.139426+00:00",
+        "run_checkpoint_inference_start": "2026-06-10T16:11:53.139426+00:00",
+        "run_checkpoint_inference_end": "2026-06-10T16:11:55.001247+00:00",
+        "save_inference_to_postgres_start": "2026-06-10T16:11:55.001247+00:00",
+        "save_inference_to_postgres_end": "2026-06-10T16:11:55.221675+00:00",
+        "pipeline_end": "2026-06-10T16:11:55.221675+00:00"
+      }
+    }
+  ],
+  "evaluation": {
+    "total_runs": 1,
+    "successes": 1,
+    "failures": 0,
+    "success_rate_pct": 100.0,
+    "success_rate_status": "good",
+    "avg_end_to_end_duration_s": 78.6307,
+    "e2e_latency_status": "good",
+    "avg_data_completeness_pct": 100.0,
+    "completeness_status": "good",
+    "failed_runs": []
+  }
+}

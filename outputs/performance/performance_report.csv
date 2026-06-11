@@ -1,0 +1,67 @@
+metric_name,component,value,unit,status,note
+end_to_end_latency,pipeline,78.6307,seconds,good,Average pipeline duration across all runs
+pipeline_success_rate,pipeline,100.0,percent,good,1/1 runs succeeded
+data_completeness,pipeline,100.0,percent,good,prediction_rows / expected_tickers (10)
+step_duration_publish_to_kafka,kafka_producer,1.0724,seconds,good,run=benchmark_20260610_231036_1
+step_duration_spark_batch_to_postgres,spark,19.6497,seconds,good,run=benchmark_20260610_231036_1
+step_duration_spark_batch_to_parquet,spark,22.5259,seconds,good,run=benchmark_20260610_231036_1
+step_duration_sync_parquet_to_minio,minio,30.8806,seconds,good,run=benchmark_20260610_231036_1
+step_duration_build_kafka_inference_bundle,ml_inference,1.4119,seconds,good,run=benchmark_20260610_231036_1
+step_duration_run_checkpoint_inference,ml_inference,1.8615,seconds,good,run=benchmark_20260610_231036_1
+step_duration_save_inference_to_postgres,postgresql,0.2204,seconds,good,run=benchmark_20260610_231036_1
+kafka_producer_throughput,kafka,0.0,msg/s,bad,messages produced per second (avg across runs)
+spark_processing_throughput,spark,10.43,rec/s,good,records processed per second by Spark (avg)
+kafka_topic_total_messages,kafka,0,messages,bad,Log end offset for topic stock-price
+kafka_consumer_lag,kafka,0,messages,good,Spark batch reads earliest-to-latest: no persistent consumer group lag
+api_response_time_health,fastapi,0.026751,seconds,good,GET /health (5 iters)
+api_throughput_health,fastapi,37.38,req/s,good,GET /health
+api_response_time_root,fastapi,0.01363,seconds,good,GET / (5 iters)
+api_throughput_root,fastapi,73.37,req/s,good,GET /
+api_response_time_tickers,fastapi,0.015972,seconds,good,GET /tickers (5 iters)
+api_throughput_tickers,fastapi,62.61,req/s,good,GET /tickers
+api_response_time_dashboard_summary,fastapi,0.014587,seconds,good,GET /dashboard/summary (5 iters)
+api_throughput_dashboard_summary,fastapi,68.56,req/s,good,GET /dashboard/summary
+api_response_time_predictions_latest,fastapi,0.014381,seconds,good,GET /predictions/runs/latest (5 iters)
+api_throughput_predictions_latest,fastapi,69.54,req/s,good,GET /predictions/runs/latest
+api_response_time_predictions_recent,fastapi,0.013727,seconds,good,GET /predictions/runs/recent?limit=5 (5 iters)
+api_throughput_predictions_recent,fastapi,72.85,req/s,good,GET /predictions/runs/recent?limit=5
+cpu_usage,ie212-postgres,5.96,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-postgres,61.04MiB,bytes,good,0.79% of limit
+cpu_usage,ie212-minio,0.04,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-minio,83.3MiB,bytes,good,1.07% of limit
+cpu_usage,ie212-kafka,1.23,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-kafka,297.4MiB,bytes,good,29.05% of limit
+cpu_usage,ie212-stock-producer,0.0,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-stock-producer,108.6MiB,bytes,good,1.4% of limit
+cpu_usage,ie212-spark-master,0.1,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-spark-master,375.5MiB,bytes,good,4.84% of limit
+cpu_usage,ie212-spark-worker,0.11,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-spark-worker,385.8MiB,bytes,good,4.98% of limit
+cpu_usage,ie212-airflow-apiserver,0.16,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-airflow-apiserver,236.5MiB,bytes,good,3.05% of limit
+cpu_usage,ie212-airflow-scheduler,2.42,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-airflow-scheduler,447.1MiB,bytes,good,5.77% of limit
+cpu_usage,ie212-ml-infer,0.0,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-ml-infer,204.3MiB,bytes,good,2.63% of limit
+cpu_usage,ie212-fastapi,0.12,percent,good,snapshot at 2026-06-10T16:10:29.585348+00:00
+memory_usage,ie212-fastapi,45.66MiB,bytes,good,0.59% of limit
+cpu_usage,ie212-postgres,1.75,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-postgres,60.63MiB,bytes,good,0.78% of limit
+cpu_usage,ie212-minio,0.0,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-minio,83.3MiB,bytes,good,1.07% of limit
+cpu_usage,ie212-kafka,1.2,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-kafka,297.4MiB,bytes,good,29.05% of limit
+cpu_usage,ie212-stock-producer,0.0,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-stock-producer,108.6MiB,bytes,good,1.4% of limit
+cpu_usage,ie212-spark-master,0.07,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-spark-master,375.5MiB,bytes,good,4.84% of limit
+cpu_usage,ie212-spark-worker,0.09,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-spark-worker,385.8MiB,bytes,good,4.98% of limit
+cpu_usage,ie212-airflow-apiserver,0.12,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-airflow-apiserver,236.5MiB,bytes,good,3.05% of limit
+cpu_usage,ie212-airflow-scheduler,3.96,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-airflow-scheduler,447.1MiB,bytes,good,5.77% of limit
+cpu_usage,ie212-ml-infer,0.0,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-ml-infer,204.3MiB,bytes,good,2.63% of limit
+cpu_usage,ie212-fastapi,0.11,percent,good,snapshot at 2026-06-10T16:10:34.728028+00:00
+memory_usage,ie212-fastapi,45.66MiB,bytes,good,0.59% of limit

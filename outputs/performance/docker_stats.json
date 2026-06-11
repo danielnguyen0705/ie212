@@ -1,0 +1,162 @@
+[
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-postgres",
+    "cpu_percent": 5.96,
+    "memory_usage": "61.04MiB",
+    "memory_percent": 0.79,
+    "net_io": "155MB / 132MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-minio",
+    "cpu_percent": 0.04,
+    "memory_usage": "83.3MiB",
+    "memory_percent": 1.07,
+    "net_io": "125kB / 110kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-kafka",
+    "cpu_percent": 1.23,
+    "memory_usage": "297.4MiB",
+    "memory_percent": 29.05,
+    "net_io": "235kB / 471kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-stock-producer",
+    "cpu_percent": 0.0,
+    "memory_usage": "108.6MiB",
+    "memory_percent": 1.4,
+    "net_io": "19.4MB / 1.72MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-spark-master",
+    "cpu_percent": 0.1,
+    "memory_usage": "375.5MiB",
+    "memory_percent": 4.84,
+    "net_io": "2.1MB / 1.3GB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-spark-worker",
+    "cpu_percent": 0.11,
+    "memory_usage": "385.8MiB",
+    "memory_percent": 4.98,
+    "net_io": "1.3GB / 2.38MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-airflow-apiserver",
+    "cpu_percent": 0.16,
+    "memory_usage": "236.5MiB",
+    "memory_percent": 3.05,
+    "net_io": "17.4kB / 21.4kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-airflow-scheduler",
+    "cpu_percent": 2.42,
+    "memory_usage": "447.1MiB",
+    "memory_percent": 5.77,
+    "net_io": "66.8MB / 92MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-ml-infer",
+    "cpu_percent": 0.0,
+    "memory_usage": "204.3MiB",
+    "memory_percent": 2.63,
+    "net_io": "121kB / 187kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:29.585348+00:00",
+    "container": "ie212-fastapi",
+    "cpu_percent": 0.12,
+    "memory_usage": "45.66MiB",
+    "memory_percent": 0.59,
+    "net_io": "333kB / 354kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-postgres",
+    "cpu_percent": 1.75,
+    "memory_usage": "60.63MiB",
+    "memory_percent": 0.78,
+    "net_io": "155MB / 132MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-minio",
+    "cpu_percent": 0.0,
+    "memory_usage": "83.3MiB",
+    "memory_percent": 1.07,
+    "net_io": "125kB / 110kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-kafka",
+    "cpu_percent": 1.2,
+    "memory_usage": "297.4MiB",
+    "memory_percent": 29.05,
+    "net_io": "235kB / 471kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-stock-producer",
+    "cpu_percent": 0.0,
+    "memory_usage": "108.6MiB",
+    "memory_percent": 1.4,
+    "net_io": "19.4MB / 1.72MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-spark-master",
+    "cpu_percent": 0.07,
+    "memory_usage": "375.5MiB",
+    "memory_percent": 4.84,
+    "net_io": "2.1MB / 1.3GB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-spark-worker",
+    "cpu_percent": 0.09,
+    "memory_usage": "385.8MiB",
+    "memory_percent": 4.98,
+    "net_io": "1.3GB / 2.38MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-airflow-apiserver",
+    "cpu_percent": 0.12,
+    "memory_usage": "236.5MiB",
+    "memory_percent": 3.05,
+    "net_io": "17.4kB / 21.4kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-airflow-scheduler",
+    "cpu_percent": 3.96,
+    "memory_usage": "447.1MiB",
+    "memory_percent": 5.77,
+    "net_io": "66.8MB / 92.1MB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-ml-infer",
+    "cpu_percent": 0.0,
+    "memory_usage": "204.3MiB",
+    "memory_percent": 2.63,
+    "net_io": "121kB / 187kB"
+  },
+  {
+    "timestamp": "2026-06-10T16:10:34.728028+00:00",
+    "container": "ie212-fastapi",
+    "cpu_percent": 0.11,
+    "memory_usage": "45.66MiB",
+    "memory_percent": 0.59,
+    "net_io": "333kB / 354kB"
+  }
+]

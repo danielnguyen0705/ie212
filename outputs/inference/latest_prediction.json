@@ -1,7 +1,7 @@
 {
   "checkpoint": "/workspace/models/hybrid_expanding_best_full.pt",
-  "input_npz": "/workspace/data/inference/latest_window.npz",
-  "as_of_date": "2026-05-31",
+  "input_npz": "/workspace/data/inference/kafka_latest_window.npz",
+  "as_of_date": "2026-06-10",
   "device": "cpu",
   "model_dims": {
     "seq_input_dim": 1,
@@ -14,73 +14,73 @@
   "predictions": [
     {
       "ticker": "AAPL",
-      "last_close": 312.05999755859375,
-      "pred_close": 312.2882080078125,
-      "pred_return": 0.0007313031180034544,
-      "graph_gate": 0.1614692509174347
+      "last_close": 290.6549987792969,
+      "pred_close": 290.84954833984375,
+      "pred_return": 0.0006693487514887104,
+      "graph_gate": 0.1816575974225998
     },
     {
       "ticker": "ADBE",
-      "last_close": 259.2099914550781,
-      "pred_close": 259.798583984375,
-      "pred_return": 0.002270716981212045,
-      "graph_gate": 0.18977153301239014
+      "last_close": 236.0800018310547,
+      "pred_close": 236.70494079589844,
+      "pred_return": 0.002647149101985239,
+      "graph_gate": 0.20515428483486176
     },
     {
       "ticker": "AMD",
-      "last_close": 516.0999755859375,
-      "pred_close": 516.7639770507812,
-      "pred_return": 0.0012865752688515386,
-      "graph_gate": 0.15038053691387177
+      "last_close": 456.53497314453125,
+      "pred_close": 457.1053466796875,
+      "pred_return": 0.0012493534311897709,
+      "graph_gate": 0.17380303144454956
     },
     {
       "ticker": "CMCSA",
-      "last_close": 24.8700008392334,
-      "pred_close": 24.896759033203125,
-      "pred_return": 0.0010759225197738821,
-      "graph_gate": 0.18501465022563934
+      "last_close": 24.059999465942383,
+      "pred_close": 24.088031768798828,
+      "pred_return": 0.0011650998952068075,
+      "graph_gate": 0.20768992602825165
     },
     {
       "ticker": "COST",
-      "last_close": 956.3200073242188,
-      "pred_close": 956.9696655273438,
-      "pred_return": 0.0006793313934137404,
-      "graph_gate": 0.16380970180034637
+      "last_close": 976.8900146484375,
+      "pred_close": 977.572021484375,
+      "pred_return": 0.0006981408610087392,
+      "graph_gate": 0.1894380897283554
     },
     {
       "ticker": "INTC",
-      "last_close": 114.68000793457031,
-      "pred_close": 114.80915832519531,
-      "pred_return": 0.0011261805169972227,
-      "graph_gate": 0.16148224472999573
+      "last_close": 106.16000366210938,
+      "pred_close": 106.2757568359375,
+      "pred_return": 0.0010903652019130404,
+      "graph_gate": 0.18127116560935974
     },
     {
       "ticker": "INTU",
-      "last_close": 331.5299987792969,
-      "pred_close": 331.9977722167969,
-      "pred_return": 0.001410953576516018,
-      "graph_gate": 0.18998706340789795
+      "last_close": 285.2850036621094,
+      "pred_close": 285.8254699707031,
+      "pred_return": 0.0018944785097567782,
+      "graph_gate": 0.21274809539318085
     },
     {
       "ticker": "MSFT",
-      "last_close": 450.239990234375,
-      "pred_close": 450.4342346191406,
-      "pred_return": 0.0004314241048746247,
-      "graph_gate": 0.16639424860477448
+      "last_close": 401.9200134277344,
+      "pred_close": 402.0382995605469,
+      "pred_return": 0.0002943026693388782,
+      "graph_gate": 0.19869959354400635
     },
     {
       "ticker": "QCOM",
-      "last_close": 251.02000427246094,
-      "pred_close": 251.2498779296875,
-      "pred_return": 0.0009157583193132853,
-      "graph_gate": 0.16235876083374023
+      "last_close": 193.32000732421875,
+      "pred_close": 193.4591827392578,
+      "pred_return": 0.0007199224589602366,
+      "graph_gate": 0.18241065740585327
     },
     {
       "ticker": "SBUX",
-      "last_close": 99.16000366210938,
-      "pred_close": 99.1849365234375,
-      "pred_return": 0.00025144070600364695,
-      "graph_gate": 0.19638743996620178
+      "last_close": 99.0,
+      "pred_close": 99.02493286132812,
+      "pred_return": 0.00025184708412247475,
+      "graph_gate": 0.21302224695682526
     }
   ]
 }

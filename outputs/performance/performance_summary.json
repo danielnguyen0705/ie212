@@ -1,0 +1,539 @@
+{
+  "generated_at": "2026-06-10T16:11:56.390965+00:00",
+  "total_metrics": 66,
+  "status_counts": {
+    "good": 64,
+    "acceptable": 0,
+    "bad": 2
+  },
+  "metrics": [
+    {
+      "metric_name": "end_to_end_latency",
+      "component": "pipeline",
+      "value": "78.6307",
+      "unit": "seconds",
+      "status": "good",
+      "note": "Average pipeline duration across all runs"
+    },
+    {
+      "metric_name": "pipeline_success_rate",
+      "component": "pipeline",
+      "value": "100.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "1/1 runs succeeded"
+    },
+    {
+      "metric_name": "data_completeness",
+      "component": "pipeline",
+      "value": "100.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "prediction_rows / expected_tickers (10)"
+    },
+    {
+      "metric_name": "step_duration_publish_to_kafka",
+      "component": "kafka_producer",
+      "value": "1.0724",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "step_duration_spark_batch_to_postgres",
+      "component": "spark",
+      "value": "19.6497",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "step_duration_spark_batch_to_parquet",
+      "component": "spark",
+      "value": "22.5259",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "step_duration_sync_parquet_to_minio",
+      "component": "minio",
+      "value": "30.8806",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "step_duration_build_kafka_inference_bundle",
+      "component": "ml_inference",
+      "value": "1.4119",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "step_duration_run_checkpoint_inference",
+      "component": "ml_inference",
+      "value": "1.8615",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "step_duration_save_inference_to_postgres",
+      "component": "postgresql",
+      "value": "0.2204",
+      "unit": "seconds",
+      "status": "good",
+      "note": "run=benchmark_20260610_231036_1"
+    },
+    {
+      "metric_name": "kafka_producer_throughput",
+      "component": "kafka",
+      "value": "0.0",
+      "unit": "msg/s",
+      "status": "bad",
+      "note": "messages produced per second (avg across runs)"
+    },
+    {
+      "metric_name": "spark_processing_throughput",
+      "component": "spark",
+      "value": "10.43",
+      "unit": "rec/s",
+      "status": "good",
+      "note": "records processed per second by Spark (avg)"
+    },
+    {
+      "metric_name": "kafka_topic_total_messages",
+      "component": "kafka",
+      "value": "0",
+      "unit": "messages",
+      "status": "bad",
+      "note": "Log end offset for topic stock-price"
+    },
+    {
+      "metric_name": "kafka_consumer_lag",
+      "component": "kafka",
+      "value": "0",
+      "unit": "messages",
+      "status": "good",
+      "note": "Spark batch reads earliest-to-latest: no persistent consumer group lag"
+    },
+    {
+      "metric_name": "api_response_time_health",
+      "component": "fastapi",
+      "value": "0.026751",
+      "unit": "seconds",
+      "status": "good",
+      "note": "GET /health (5 iters)"
+    },
+    {
+      "metric_name": "api_throughput_health",
+      "component": "fastapi",
+      "value": "37.38",
+      "unit": "req/s",
+      "status": "good",
+      "note": "GET /health"
+    },
+    {
+      "metric_name": "api_response_time_root",
+      "component": "fastapi",
+      "value": "0.01363",
+      "unit": "seconds",
+      "status": "good",
+      "note": "GET / (5 iters)"
+    },
+    {
+      "metric_name": "api_throughput_root",
+      "component": "fastapi",
+      "value": "73.37",
+      "unit": "req/s",
+      "status": "good",
+      "note": "GET /"
+    },
+    {
+      "metric_name": "api_response_time_tickers",
+      "component": "fastapi",
+      "value": "0.015972",
+      "unit": "seconds",
+      "status": "good",
+      "note": "GET /tickers (5 iters)"
+    },
+    {
+      "metric_name": "api_throughput_tickers",
+      "component": "fastapi",
+      "value": "62.61",
+      "unit": "req/s",
+      "status": "good",
+      "note": "GET /tickers"
+    },
+    {
+      "metric_name": "api_response_time_dashboard_summary",
+      "component": "fastapi",
+      "value": "0.014587",
+      "unit": "seconds",
+      "status": "good",
+      "note": "GET /dashboard/summary (5 iters)"
+    },
+    {
+      "metric_name": "api_throughput_dashboard_summary",
+      "component": "fastapi",
+      "value": "68.56",
+      "unit": "req/s",
+      "status": "good",
+      "note": "GET /dashboard/summary"
+    },
+    {
+      "metric_name": "api_response_time_predictions_latest",
+      "component": "fastapi",
+      "value": "0.014381",
+      "unit": "seconds",
+      "status": "good",
+      "note": "GET /predictions/runs/latest (5 iters)"
+    },
+    {
+      "metric_name": "api_throughput_predictions_latest",
+      "component": "fastapi",
+      "value": "69.54",
+      "unit": "req/s",
+      "status": "good",
+      "note": "GET /predictions/runs/latest"
+    },
+    {
+      "metric_name": "api_response_time_predictions_recent",
+      "component": "fastapi",
+      "value": "0.013727",
+      "unit": "seconds",
+      "status": "good",
+      "note": "GET /predictions/runs/recent?limit=5 (5 iters)"
+    },
+    {
+      "metric_name": "api_throughput_predictions_recent",
+      "component": "fastapi",
+      "value": "72.85",
+      "unit": "req/s",
+      "status": "good",
+      "note": "GET /predictions/runs/recent?limit=5"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-postgres",
+      "value": "5.96",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-postgres",
+      "value": "61.04MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "0.79% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-minio",
+      "value": "0.04",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-minio",
+      "value": "83.3MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "1.07% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-kafka",
+      "value": "1.23",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-kafka",
+      "value": "297.4MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "29.05% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-stock-producer",
+      "value": "0.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-stock-producer",
+      "value": "108.6MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "1.4% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-spark-master",
+      "value": "0.1",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-spark-master",
+      "value": "375.5MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "4.84% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-spark-worker",
+      "value": "0.11",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-spark-worker",
+      "value": "385.8MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "4.98% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-airflow-apiserver",
+      "value": "0.16",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-airflow-apiserver",
+      "value": "236.5MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "3.05% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-airflow-scheduler",
+      "value": "2.42",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-airflow-scheduler",
+      "value": "447.1MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "5.77% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-ml-infer",
+      "value": "0.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-ml-infer",
+      "value": "204.3MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "2.63% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-fastapi",
+      "value": "0.12",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:29.585348+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-fastapi",
+      "value": "45.66MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "0.59% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-postgres",
+      "value": "1.75",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-postgres",
+      "value": "60.63MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "0.78% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-minio",
+      "value": "0.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-minio",
+      "value": "83.3MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "1.07% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-kafka",
+      "value": "1.2",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-kafka",
+      "value": "297.4MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "29.05% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-stock-producer",
+      "value": "0.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-stock-producer",
+      "value": "108.6MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "1.4% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-spark-master",
+      "value": "0.07",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-spark-master",
+      "value": "375.5MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "4.84% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-spark-worker",
+      "value": "0.09",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-spark-worker",
+      "value": "385.8MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "4.98% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-airflow-apiserver",
+      "value": "0.12",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-airflow-apiserver",
+      "value": "236.5MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "3.05% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-airflow-scheduler",
+      "value": "3.96",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-airflow-scheduler",
+      "value": "447.1MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "5.77% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-ml-infer",
+      "value": "0.0",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-ml-infer",
+      "value": "204.3MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "2.63% of limit"
+    },
+    {
+      "metric_name": "cpu_usage",
+      "component": "ie212-fastapi",
+      "value": "0.11",
+      "unit": "percent",
+      "status": "good",
+      "note": "snapshot at 2026-06-10T16:10:34.728028+00:00"
+    },
+    {
+      "metric_name": "memory_usage",
+      "component": "ie212-fastapi",
+      "value": "45.66MiB",
+      "unit": "bytes",
+      "status": "good",
+      "note": "0.59% of limit"
+    }
+  ]
+}
