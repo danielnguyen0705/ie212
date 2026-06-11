@@ -65,7 +65,7 @@ def compute_model_loss(model, pred_close, y_close, last_close, eps=0.0):
     return mse_loss + direction_weight * direction_loss
 
 
-def train_one_epoch(model, loader, optimizer, criterion, device):
+def train_one_epoch(model, loader, optimizer, criterion, device, noise_std=0.0):
     model.train()
     total_loss = 0.0
 
@@ -82,6 +82,9 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
         adj = adj.to(device)
         y_close = y_close.to(device)
         last_close = last_close.to(device)
+
+        if noise_std > 0.0:
+            seq = seq + torch.randn_like(seq) * noise_std
 
         optimizer.zero_grad()
         pred_close = model(seq, node_x, adj, last_close)
@@ -154,7 +157,7 @@ def predict_model(model, loader, device):
     return preds, trues, lasts
 
 
-def fit_model_silent(model, train_loader, val_loader, epochs, lr, patience, device, verbose=False):
+def fit_model_silent(model, train_loader, val_loader, epochs, lr, patience, device, verbose=False, noise_std=0.0):
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
 
@@ -165,7 +168,7 @@ def fit_model_silent(model, train_loader, val_loader, epochs, lr, patience, devi
     history = {"train_loss": [], "val_loss": [], "initial_val_loss": best_val}
 
     for epoch in range(1, epochs + 1):
-        train_loss = train_one_epoch(model, train_loader, optimizer, criterion, device)
+        train_loss = train_one_epoch(model, train_loader, optimizer, criterion, device, noise_std=noise_std)
         val_loss = evaluate_loss(model, val_loader, criterion, device)
 
         history["train_loss"].append(train_loss)
@@ -254,3 +257,55 @@ def initialize_graph_gate_from_no_gate(gate_model, no_gate_model):
 
     gate_model.load_state_dict(gate_state)
     return gate_model
+
+
+@torch.no_grad()
+def predict_model_with_attention(model, loader, device):
+    model.eval()
+
+    preds = []
+    trues = []
+    lasts = []
+    gates = []
+    attns = []
+
+    for batch in loader:
+        if len(batch) == 6:
+            seq, node_x, adj, _, y_close, last_close = batch
+        elif len(batch) == 5:
+            seq, node_x, adj, y_close, last_close = batch
+        else:
+            raise ValueError("Unexpected batch format in predict_model_with_attention.")
+
+        seq = seq.to(device)
+        node_x = node_x.to(device)
+        adj = adj.to(device)
+        last_close_device = last_close.to(device)
+
+        pred_close, gate, attn_weights = model(seq, node_x, adj, last_close_device, return_attention=True)
+
+        preds.append(pred_close.cpu().numpy())
+        trues.append(y_close.numpy())
+        lasts.append(last_close.numpy())
+        gates.append(gate.cpu().numpy())
+        attns.append(attn_weights.cpu().numpy())
+
+    preds = np.concatenate(preds, axis=0)
+    trues = np.concatenate(trues, axis=0)
+    lasts = np.concatenate(lasts, axis=0)
+    gates = np.concatenate(gates, axis=0)
+    attns = np.concatenate(attns, axis=0)
+
+    return preds, trues, lasts, gates, attns
+
+
+def initialize_tsn_from_graph_gate_model(tsn_model, graph_gate_model):
+    tsn_state = tsn_model.state_dict()
+    gg_state = graph_gate_model.state_dict()
+
+    for k, v in gg_state.items():
+        if k in tsn_state and v.shape == tsn_state[k].shape:
+            tsn_state[k] = copy.deepcopy(v)
+
+    tsn_model.load_state_dict(tsn_state)
+    return tsn_model

@@ -4,6 +4,7 @@ from pathlib import Path
 from time import sleep
 from typing import Dict, List, Tuple
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -51,6 +52,18 @@ def _postprocess_price_frame(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
     df["MA20"] = df["Close"].rolling(20).mean()
     df["Volatility5"] = df["Return"].rolling(5).std()
     df["Volatility20"] = df["Return"].rolling(20).std()
+    df["MA50"] = df["Close"].rolling(50).mean()
+    df["EMA20"] = df["Close"].ewm(span=20, adjust=False).mean()
+    df["Close_Minus_MA20"] = df["Close"] - df["MA20"]
+    df["MA20_Slope"] = df["MA20"].diff()
+    df["DayOfWeek"] = df.index.dayofweek
+    df["Month"] = df.index.month
+    df["IsMonthEnd"] = df.index.is_month_end.astype(int)
+    df["Sin_DayOfWeek"] = np.sin(2 * np.pi * df["DayOfWeek"] / 5.0)
+    df["Cos_DayOfWeek"] = np.cos(2 * np.pi * df["DayOfWeek"] / 5.0)
+    roll_mean20 = df["Return"].rolling(20).mean()
+    roll_std20 = df["Return"].rolling(20).std()
+    df["Return_ZScore"] = (df["Return"] - roll_mean20) / (roll_std20 + 1e-8)
 
     df = df.dropna().copy()
     df.index = pd.to_datetime(df.index)

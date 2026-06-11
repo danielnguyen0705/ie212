@@ -4,7 +4,7 @@ import torch
 import _path_setup
 
 from src.config import FEATURE_COLS, LSTM_HIDDEN, GNN_HIDDEN, MLP_HIDDEN, DROPOUT
-from src.models import LSTMOnlyModel, HybridLSTMGNNGraphGate
+from src.models import LSTMOnlyModel, HybridLSTMGNNGraphGate, TSNAttentionGraphGatedLSTMGNN
 from src.artifacts import load_model_checkpoint
 
 
@@ -26,6 +26,15 @@ def main():
         dropout=DROPOUT
     )
 
+    tsn_model = TSNAttentionGraphGatedLSTMGNN(
+        seq_input_dim=len(FEATURE_COLS),
+        node_input_dim=len(FEATURE_COLS),
+        lstm_hidden=LSTM_HIDDEN,
+        gnn_hidden=GNN_HIDDEN,
+        mlp_hidden=MLP_HIDDEN,
+        dropout=DROPOUT
+    )
+
     lstm_model, lstm_meta = load_model_checkpoint(
         lstm_model,
         "models/lstm_expanding_best_full.pt",
@@ -38,11 +47,20 @@ def main():
         map_location=device
     )
 
+    tsn_model, tsn_meta = load_model_checkpoint(
+        tsn_model,
+        "models/tsn_attn_expanding_best_full.pt",
+        map_location=device
+    )
+
     print("Loaded LSTM checkpoint.")
     print(lstm_meta)
 
     print("\nLoaded Hybrid checkpoint.")
     print(hybrid_meta)
+
+    print("\nLoaded TSN checkpoint.")
+    print(tsn_meta)
 
 
 if __name__ == "__main__":

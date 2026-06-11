@@ -29,7 +29,7 @@ END_DATE = "2025-06-01"
 # - MA5, MA20: Trung bình trượt 5 và 20 ngày
 # - Volatility5, Volatility20: Độ biến động (std của Return) 5 và 20 ngày
 # --------------------------------------------------------------------------
-FEATURE_COLS = [
+BASE_FEATURE_COLS = [
     "Close",
     "Volume",
     "Return",
@@ -38,6 +38,21 @@ FEATURE_COLS = [
     "Volatility5",
     "Volatility20"
 ]
+
+TSN_FEATURE_COLS = [
+    "MA50",
+    "EMA20",
+    "Close_Minus_MA20",
+    "MA20_Slope",
+    "DayOfWeek",
+    "Month",
+    "IsMonthEnd",
+    "Sin_DayOfWeek",
+    "Cos_DayOfWeek",
+    "Return_ZScore"
+]
+
+FEATURE_COLS = BASE_FEATURE_COLS + TSN_FEATURE_COLS
 
 TARGET_COL = "Close"
 TARGET_IDX = FEATURE_COLS.index(TARGET_COL)
@@ -142,3 +157,9 @@ RETRAIN_SCHEDULE = "0 0 1 */3 *"
 RETRAIN_MIN_NEW_DAYS = 20
 
 SEED = 42
+
+# --------------------------------------------------------------------------
+# CẤU HÌNH TSN-ATTENTION MODEL
+# --------------------------------------------------------------------------
+EXP_GAUSSIAN_NOISE_STD = 0.01
+EXP_LR_TSN = 0.005

@@ -76,7 +76,7 @@ def main():
         log("Môi trường ảo (.venv) đã có sẵn, bỏ qua bước khởi tạo.")
 
     # 4. Huấn luyện mô hình cục bộ để chuẩn bị dữ liệu thô và file Checkpoint
-    checkpoint_file = os.path.join("models", "hybrid_expanding_best_full.pt")
+    checkpoint_file = os.path.join("models", "tsn_attn_expanding_best_full.pt")
     raw_data_dir = os.path.join("data", "raw")
     if not os.path.exists(checkpoint_file) or not os.path.exists(raw_data_dir) or not os.listdir(raw_data_dir):
         log("Thiếu dữ liệu thô hoặc file mô hình. Đang kéo dữ liệu và huấn luyện mô hình cục bộ...")

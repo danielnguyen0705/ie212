@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from src.rolling_scaler import RollingMinMaxScaler
-from src.models import HybridLSTMGNNGraphGate
+from src.models import HybridLSTMGNNGraphGate, TSNAttentionGraphGatedLSTMGNN
 
 
 def load_checkpoint_generic(ckpt_path: Path):
@@ -135,14 +135,26 @@ def main():
         "cuda" if args.device == "cuda" and torch.cuda.is_available() else "cpu"
     )
 
-    model = HybridLSTMGNNGraphGate(
-        seq_input_dim=dims["seq_input_dim"],
-        node_input_dim=dims["node_input_dim"],
-        lstm_hidden=dims["lstm_hidden"],
-        gnn_hidden=dims["gnn_hidden"],
-        mlp_hidden=dims["mlp_hidden"],
-        dropout=args.dropout,
-    ).to(device)
+    is_tsn = "temporal_attention.W.weight" in state_dict
+
+    if is_tsn:
+        model = TSNAttentionGraphGatedLSTMGNN(
+            seq_input_dim=dims["seq_input_dim"],
+            node_input_dim=dims["node_input_dim"],
+            lstm_hidden=dims["lstm_hidden"],
+            gnn_hidden=dims["gnn_hidden"],
+            mlp_hidden=dims["mlp_hidden"],
+            dropout=args.dropout,
+        ).to(device)
+    else:
+        model = HybridLSTMGNNGraphGate(
+            seq_input_dim=dims["seq_input_dim"],
+            node_input_dim=dims["node_input_dim"],
+            lstm_hidden=dims["lstm_hidden"],
+            gnn_hidden=dims["gnn_hidden"],
+            mlp_hidden=dims["mlp_hidden"],
+            dropout=args.dropout,
+        ).to(device)
 
     model.load_state_dict(state_dict, strict=True)
     model.eval()

@@ -190,7 +190,7 @@ s3 = boto3.client(
     config=Config(signature_version='s3v4', s3={'addressing_style': 'path'})
 )
 # Upload pt
-s3.upload_file('models/hybrid_expanding_best_full.pt', 'models', 'hybrid_expanding_best_latest.pt')
+s3.upload_file('models/tsn_attn_expanding_best_full.pt', 'models', 'hybrid_expanding_best_latest.pt')
 # Upload metadata
 s3.upload_file('models/run_metadata_full.json', 'models', 'run_metadata_latest.json')
 print('Upload checkpoint to MinIO succeeded!')

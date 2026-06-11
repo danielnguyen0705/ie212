@@ -32,11 +32,11 @@ PG_DB = "stock_project"
 PG_USER = "stock_user"
 PG_PASSWORD = "change_me_postgres"
 
-MODEL_CHECKPOINT = "/workspace/models/hybrid_expanding_best_full.pt"
+MODEL_CHECKPOINT = "/workspace/models/tsn_attn_expanding_best_full.pt"
 INFERENCE_RAW_DIR = "/workspace/data/raw"
 INFERENCE_BUNDLE_PATH = "/workspace/data/inference/kafka_latest_window.npz"
 INFERENCE_OUTPUT_JSON = "/workspace/outputs/inference/latest_prediction.json"
-MODEL_NAME = "hybrid_expanding_best_full"
+MODEL_NAME = "tsn_attn_expanding_best_full"
 
 
 def utc_now() -> str:
