@@ -1,11 +1,11 @@
 {
-  "checkpoint": "/workspace/models/hybrid_expanding_best_full.pt",
-  "input_npz": "/workspace/data/inference/kafka_latest_window.npz",
-  "as_of_date": "2026-06-10",
+  "checkpoint": "/workspace/models/tsn_attn_expanding_best_full.pt",
+  "input_npz": "/workspace/data/inference/latest_window.npz",
+  "as_of_date": "2026-06-11",
   "device": "cpu",
   "model_dims": {
-    "seq_input_dim": 1,
-    "node_input_dim": 7,
+    "seq_input_dim": 17,
+    "node_input_dim": 17,
     "lstm_hidden": 64,
     "gnn_hidden": 32,
     "mlp_hidden": 64
@@ -14,73 +14,73 @@
   "predictions": [
     {
       "ticker": "AAPL",
-      "last_close": 290.6549987792969,
-      "pred_close": 290.84954833984375,
-      "pred_return": 0.0006693487514887104,
-      "graph_gate": 0.1816575974225998
+      "last_close": 295.6300048828125,
+      "pred_close": 296.1051330566406,
+      "pred_return": 0.0016071716875168522,
+      "graph_gate": 0.1792697161436081
     },
     {
       "ticker": "ADBE",
-      "last_close": 236.0800018310547,
-      "pred_close": 236.70494079589844,
-      "pred_return": 0.002647149101985239,
-      "graph_gate": 0.20515428483486176
+      "last_close": 218.8000030517578,
+      "pred_close": 220.33106994628906,
+      "pred_return": 0.006997563405742145,
+      "graph_gate": 0.19117018580436707
     },
     {
       "ticker": "AMD",
-      "last_close": 456.53497314453125,
-      "pred_close": 457.1053466796875,
-      "pred_return": 0.0012493534311897709,
-      "graph_gate": 0.17380303144454956
+      "last_close": 488.45001220703125,
+      "pred_close": 489.906982421875,
+      "pred_return": 0.0029828440545236552,
+      "graph_gate": 0.1726764440536499
     },
     {
       "ticker": "CMCSA",
-      "last_close": 24.059999465942383,
-      "pred_close": 24.088031768798828,
-      "pred_return": 0.0011650998952068075,
-      "graph_gate": 0.20768992602825165
+      "last_close": 23.969999313354492,
+      "pred_close": 24.03614616394043,
+      "pred_return": 0.0027595683137581427,
+      "graph_gate": 0.19452108442783356
     },
     {
       "ticker": "COST",
-      "last_close": 976.8900146484375,
-      "pred_close": 977.572021484375,
-      "pred_return": 0.0006981408610087392,
-      "graph_gate": 0.1894380897283554
+      "last_close": 975.6900024414062,
+      "pred_close": 977.2867431640625,
+      "pred_return": 0.0016365246324763281,
+      "graph_gate": 0.18591219186782837
     },
     {
       "ticker": "INTC",
-      "last_close": 106.16000366210938,
-      "pred_close": 106.2757568359375,
-      "pred_return": 0.0010903652019130404,
-      "graph_gate": 0.18127116560935974
+      "last_close": 116.96000671386719,
+      "pred_close": 117.27163696289062,
+      "pred_return": 0.0026644171608660614,
+      "graph_gate": 0.17535603046417236
     },
     {
       "ticker": "INTU",
-      "last_close": 285.2850036621094,
-      "pred_close": 285.8254699707031,
-      "pred_return": 0.0018944785097567782,
-      "graph_gate": 0.21274809539318085
+      "last_close": 276.9100036621094,
+      "pred_close": 278.2098693847656,
+      "pred_return": 0.00469418116162524,
+      "graph_gate": 0.19958870112895966
     },
     {
       "ticker": "MSFT",
-      "last_close": 401.9200134277344,
-      "pred_close": 402.0382995605469,
-      "pred_return": 0.0002943026693388782,
-      "graph_gate": 0.19869959354400635
+      "last_close": 390.3399963378906,
+      "pred_close": 390.5749816894531,
+      "pred_return": 0.000602001726103131,
+      "graph_gate": 0.1915876418352127
     },
     {
       "ticker": "QCOM",
-      "last_close": 193.32000732421875,
-      "pred_close": 193.4591827392578,
-      "pred_return": 0.0007199224589602366,
-      "graph_gate": 0.18241065740585327
+      "last_close": 202.9600067138672,
+      "pred_close": 203.32235717773438,
+      "pred_return": 0.0017853293845128259,
+      "graph_gate": 0.1778767704963684
     },
     {
       "ticker": "SBUX",
-      "last_close": 99.0,
-      "pred_close": 99.02493286132812,
-      "pred_return": 0.00025184708412247475,
-      "graph_gate": 0.21302224695682526
+      "last_close": 102.27999877929688,
+      "pred_close": 102.33853149414062,
+      "pred_return": 0.0005722791898937524,
+      "graph_gate": 0.19454391300678253
     }
   ]
 }

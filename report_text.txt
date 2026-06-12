@@ -1,0 +1,548 @@
+ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH
+TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN
+KHOA KHOA HỌC VÀ KỸ THUẬT THÔNG TIN
+
+
+
+
+BÁO CÁO ĐỒ ÁN CUỐI KỲ
+MÔN HỌC CÔNG NGHỆ DỮ LIỆU LỚN
+Đề tài: 
+NGHIÊN CỨU SO SÁNH CÁC MÔ HÌNH LINEAR REGRESSION, MÔ HÌNH LSTM VÀ MÔ HÌNH HYBRID LSTM - GRAPH NEURAL NETWORK TRONG VIỆC XÂY DỰNG HỆ THỐNG DỰ BÁO GIÁ ĐÓNG CỬA CỔ PHIẾU TRÊN KIẾN TRÚC DỮ LIỆU LỚN
+
+GVHD: TS. Hà Minh Tân
+Lớp: IE212.Q21
+Nhóm sinh viên thực hiện:  
+1. Đặng Công An 		MSSV: 23520002
+2. Nguyễn Cao Cường	MSSV: 23520198	 
+3. Nguyễn Quốc Đạt 		MSSV: 23520260	
+
+
+
+
+ Tp. Hồ Chí Minh, 06/2026 
+NHẬN XÉT CỦA GIẢNG VIÊN HƯỚNG DẪN
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+
+	……., ngày……...tháng……năm 2026
+	
+	Người nhận xét 
+	(Ký tên và ghi rõ họ tên) 
+LỜI CẢM ƠN
+Lời đầu tiên, nhóm thực hiện xin dành gửi lời cảm ơn đến TS. Hà Minh Tân vì đã giúp đỡ nhóm thực hiện trong việc hình thành ý tưởng cũng như giải đáp những điều khó hiểu trong quá trình thực hiện đồ án.
+Do còn hạn chế về kiến thức cũng như kinh nghiệm thực hiện đề tài, đồ án chắc chắn không tránh khỏi những thiếu sót. Nhóm thực hiện rất mong nhận được những ý kiến đóng góp quý báu từ thầy để sản phẩm đồ án trở nên hoàn thiện hơn.
+Xin trân trọng cảm ơn!
+
+
+LỜI MỞ ĐẦU
+Báo cáo này tập trung vào đề tài “Nghiên cứu so sánh các mô hình Linear Regression, LSTM và Hybrid LSTM - Graph Neural Network trong việc xây dựng hệ thống dự báo giá đóng cửa cổ phiếu trên kiến trúc dữ liệu lớn”, nhằm giúp nhóm thực hiện có cái nhìn rõ ràng và hệ thống hơn về cách phân tích và tiền xử lý dữ liệu tài chính quy mô lớn, thiết kế kiến trúc hệ thống lưu trữ và xử lý phân tán, xây dựng pipeline huấn luyện cho mô hình và biết cách đánh giá hiệu quả của hệ thống thông qua các chỉ số kiểm định phổ biến trong bài toán dự báo chuỗi thời gian. Qua đó, nhóm thực hiện có cơ hội củng cố kiến thức nền tảng và học hỏi thêm nhiều kinh nghiệm mới trong quá trình thực hiện đề tài.
+	Sau đây, nhóm xin trình bày nội dung đồ án qua các chương:
+Chương 1: Tổng quan đề tài
+Chương 2: Cơ sở lý thuyết
+Chương 3: Phương pháp thực hiện
+Chương 4: Kết quả đánh giá
+Chương 5: Kết luận
+	
+DANH MỤC BẢNG
+Bảng 1. Kết quả đánh giá mô hình trong Môi trường Thực nghiệm tĩnh trên thang MinMaxScaler	35
+Bảng 2. Kết quả đánh giá mô hình trong Môi trường Thực nghiệm tĩnh trên đơn vị giá USD thực tế	35
+Bảng 3. Kết quả đánh giá hiệu năng trên kiến trúc Big Data	38
+Bảng 4. MSE theo từng mã cổ phiếu trên kiến trúc Big Data	39
+Bảng 5. Kết quả các chỉ số tài chính trong Môi trường Thực nghiệm tĩnh	42
+Bảng 6. Kết quả backtest trên kiến trúc Big Data với mô hình Hybird LSTM-GNN	46
+
+
+
+DANH MỤC HÌNH ẢNH
+Hình 1. Mạng liên kết cổ phiếu Pearson + Association	28
+Hình 2. Sơ đồ tổng quan hệ thống dự đoán giá cổ phiếu đóng trên kiến trúc Big Data 	33
+Hình 3. Ma trận tương quan Pearson giữa 10 mã cổ phiếu trong môi trường thực nghiệm tĩnh	36
+Hình 4. Biên động MSE theo từng ngày kiểm thử với expanding window trong môi trường tĩnh	37
+Hình 5. Biểu đồ heatmap thể hiện sai số RMSE chuẩn hóa theo giá trị trung bình từng mã cổ phiếu	37
+Hình 6. So sánh giá thực tế và giá dự báo của một số mã đại diện	38
+Hình 7. Biểu đồ cột so sánh sai số MSE theo từng mã cổ phiếu trên kiến trúc Big Data	40
+Hình 8. Biến động sai số dự báo MSE theo từng bước kiểm thử trên kiến trúc Big Data	41
+Hình 9. So sánh các chỉ số Sharpe Ratio, Tỷ lệ thắng Win Rate và Mức sụt giảm tối đa MDD trong môi trường thực nghiệm tĩnh với các chiến lược	44
+Hình 10. Đường cong so sánh chỉ số lợi nhuận tích lũy trong Môi trường Thực nghiệm tĩnh với các chiến lược tương ứng	45
+Hình 11. Biểu đồ diễn biến mức sụt giảm vốn trong Môi trường Thực nghiệm tĩnh với các chiến lược	45
+Hình 12. Đường cong lợi nhuận tích lũy trên Kiến trúc Big Data	46
+Hình 13. So sánh chỉ số Sharpe Ratio và Maximum Drawdown trên kiến trúc Big Data	46
+Hình 14. Diễn biến hệ số cổng Gate_Mean theo thời gian trên Big Data	48
+Hình 15. Số lượng cạnh Pearson, Association và Combined theo thời gian trong kiến trúc Big Data	49
+Hình 16. Giao diện Bảng Thống kê của kiến trúc Big Data	59
+Hình 17. Giao diện Biểu đồ thời gian thực sử dụng biểu đồ đường trong kiến trúc Big Data	60
+Hình 18. Giao diện Biểu đồ thời gian thực sử dụng biểu đồ Nến Nhật trong kiến trúc Big Data	61
+Hình 19. Giao diện trang Phân tích chi tiết các cổ phiếu của kiến trúc Big Data	62
+Hình 20. Một cổ phiếu khi được chọn sẽ hiển thị các thông tin cần thiết và cả các phân tích chi tiết "Lý do khuyến nghị" và "Cảnh báo rủi ro" tích hợp mô hình LLM	63
+MỤC LỤC
+
+CHƯƠNG 1: TỔNG QUAN ĐỀ TÀI
+1.1. Tính cấp thiết của đề tài 
+Trong kỷ nguyên số và sự phát triển vượt bậc của nền kinh tế tài chính toàn cầu, thị trường chứng khoán đã trở thành một kênh đầu tư thu hút lượng vốn khổng lồ từ cả các cá nhân lẫn tổ chức. Đi cùng với đó là sự bùng nổ dữ liệu giao dịch tài chính với tần suất cao, khối lượng cực lớn, tốc độ sinh trưởng nhanh và tính đa dạng cao, cấu thành một dạng dữ liệu lớn điển hình. Việc khai thác hiệu quả nguồn dữ liệu này để dự đoán xu hướng biến động giá của các công cụ tài chính, đặc biệt là giá đóng cửa cổ phiếu, đóng vai trò sống còn trong việc hỗ trợ các nhà đầu tư tối ưu hóa lợi nhuận và phòng ngừa rủi ro thị trường. 
+Tuy nhiên, giá cổ phiếu vốn mang bản chất phức tạp, chứa nhiều nhiễu và biến động phi tuyến tính liên tục. Các phương pháp dự báo truyền thống hoặc các mô hình học máy thông thường thường gặp phải hai thách thức lớn:
+Sự phụ thuộc chuỗi thời gian vì giá cổ phiếu chịu ảnh hưởng sâu sắc bởi các quy luật lịch sử và xu hướng hành vi trong quá khứ.
+Sự tương quan không gian khi các mã cổ phiếu trên thị trường không tồn tại độc lập mà liên kết chặt chẽ với nhau thông qua mạng lưới chuỗi cung ứng, cấu trúc ngành nghề hoặc các tác động tâm lý dòng tiền chéo.
+Mặc dù các mô hình LSTM rất mạnh trong việc học các đặc trưng chuỗi thời gian đơn lẻ, chúng lại bỏ qua mối quan hệ mạng lưới giữa các cổ phiếu. Ngược lại, mạng GNN xử lý rất tốt cấu trúc liên kết không gian nhưng chưa tối ưu cho dữ liệu tuần tự dài. Do đó, việc nghiên cứu một giải pháp kết hợp hai mô hình LSTM–GNN là vô cùng cần thiết nhằm giải quyết đồng thời cả hai khía cạnh không gian và thời gian của dữ liệu tài chính. 
+Bên cạnh đó, do đặc thù dữ liệu chứng khoán được cập nhật liên tục theo thời gian của phiên giao dịch và có thể được cập nhật theo nhiều tần suất khác nhau, từ dữ liệu theo phiên, theo ngày đến dữ liệu gần thời gian thực, việc xử lý dữ liệu theo lô truyền thống sẽ gây ra độ trễ lớn, không phản ứng kịp thời với các biến động tức thì của thị trường. Do đó, thiết lập một hệ thống ứng dụng các kiến trúc Dữ liệu lớn có khả năng xử lý luồng thời gian là một bài toán có tính ứng dụng thực tiễn rất cao. 
+Chính vì những lý do trên, nhóm quyết định chọn đề tài: “Nghiên cứu so sánh các mô hình Linear Regression, LSTM và Hybrid LSTM - Graph Neural Network trong việc xây dựng hệ thống dự báo giá đóng cửa cổ phiếu trên kiến trúc dữ liệu lớn” với hy vọng tìm được một mô hình tối ưu cùng với một giải pháp kỹ thuật có độ chính xác cao, xử lý hiệu quả dòng dữ liệu lớn tài chính luồng và đóng góp một công cụ hỗ trợ ra quyết định đáng tin cậy trong lĩnh vực công nghệ tài chính.
+1.2. Mục tiêu nghiên cứu 
+1.2.1. Mục tiêu tổng quát 
+Thực hiện so sánh các mô hình Linear Regression, mô hình LSTM và mô hình Hybrid LSTM–Graph Neural Network thông qua các chỉ số hiệu năng và chỉ số tài chính. Từ đó, chọn được mô hình tối ưu nhất để xây dựng một hệ thống ứng dụng kiến trúc dữ liệu lớn để thu thập, lưu trữ, xử lý luồng thời gian thực và thực hiện dự đoán giá đóng cửa của các mã cổ phiếu. Từ đó giúp nâng cao hiệu quả dự báo xu hướng thị trường tài chính dài hạn và ngắn hạn; Hỗ trợ nhà đầu tư có thêm cơ sở tham khảo trong việc ra quyết định giao dịch dựa trên dữ liệu cập nhật tức thời; Hỗ trợ nhận diện mối quan hệ biến động giữa các cổ phiếu, từ đó cung cấp thêm thông tin cho việc đánh giá rủi ro danh mục. 
+1.2.2. Mục tiêu cụ thể 
+Thiết kế kiến trúc lưu trữ phân tán, xử lý sạch và chuẩn hóa dữ liệu giao dịch lịch sử và dữ liệu đồ thị liên kết ngành của các mã cổ phiếu sao cho phù hợp với bài toán.
+Xây dựng, cấu hình và huấn luyện các mô hình Linear Regression, mô hình LSTM, mô hình Hybrid LSTM–GNN nhằm tích hợp đồng thời các đặc trưng chuỗi thời gian và cấu trúc đồ thị tương quan tài chính.
+Triển khai luồng kiến trúc xử lý dữ liệu luồng theo thời gian thực kết hợp giữa các tầng lưu trữ và tính toán phân tán sau khi chọn được mô hình tối ưu nhất.
+Phát triển giao diện trang web thử nghiệm để hiển thị kết quả dự đoán giá đóng cửa một cách trực quan, sinh động giúp người dùng dễ dàng theo dõi biến động thị trường theo thời gian thực. 
+1.3. Đối tượng và phạm vi nghiên cứu 
+1.3.1. Đối tượng nghiên cứu
+Đối tượng nghiên cứu của đề tài là bài toán dự đoán giá đóng cửa của các mã cổ phiếu trực tuyến dựa trên việc khai thác dữ liệu lịch sử giá giao dịch, khối lượng và cấu trúc đồ thị mạng lưới mối quan hệ tương quan giữa các cổ phiếu/doanh nghiệp trên thị trường chứng khoán. 
+Bài toán dự đoán này được mô tả cụ thể với đầu vào và đầu ra như sau: 
+Đầu vào (Input): Dữ liệu lớn từ thị trường tài chính bao gồm chuỗi thời gian lịch sử giao dịch (Giá mở cửa, giá cao nhất, giá thấp nhất, giá đóng cửa, khối lượng) kết hợp với ma trận kề biểu diễn đồ thị liên kết ngành hoặc tương quan giữa các doanh nghiệp. 
+Đầu ra (Output): Giá trị dự đoán đóng cửa của các mã cổ phiếu được theo dõi trong các phiên giao dịch tiếp theo hoặc các bước thời gian thực.
+1.3.3. Phạm vi nghiên cứu
+Dữ liệu nghiên cứu: Đề tài tập trung khai thác bộ dữ liệu chứng khoán lịch sử độ phân giải theo ngày trong giai đoạn kéo dài 20 năm (từ ngày 01/01/2005 đến ngày 01/06/2026) của 10 mã cổ phiếu blue-chip đại diện đa ngành thuộc sàn giao dịch NASDAQ (Mỹ) bao gồm: AAPL, ADBE, AMD, CMCSA, COST, INTC, INTU, MSFT, QCOM, SBUX. Cấu trúc không gian được biểu diễn dưới dạng một đồ thị mạng lưới liên kết với ma trận kề kích thước , trong đó các cạnh thể hiện mức độ tương quan tài chính giữa các doanh nghiệp được tính toán thông qua hệ số tương quan Pearson và luật kết hợp. 
+Giải pháp mô phỏng luồng dữ liệu: Do đặc thù các API công khai từ nguồn yfinance chủ yếu cung cấp dữ liệu tĩnh cuối ngày, đề tài áp dụng kỹ thuật Phát lại dữ liệu lịch sử làm phương pháp luận thực nghiệm chính. Hệ thống xây dựng một tiến trình phân phối dữ liệu đóng vai trò đọc tuần tự các điểm dữ liệu lịch sử được định dạng sẵn từ local cache (CSV), chuyển đổi cấu trúc cấu thành các thông điệp dạng JSON (Stock Ticks) và đẩy liên tục vào hệ thống hàng đợi Apache Kafka với khoảng thời gian trễ được cấu hình (mặc định 30 giây/thông điệp). Cơ chế này cho phép giả lập hoàn chỉnh một môi trường kiểm thử dòng dữ liệu tài chính real-time tải cao.
+Công nghệ Dữ liệu lớn được ứng dụng: Sử dụng các công nghệ lưu trữ, xử lý dữ liệu lớn phân tán và xử lý thời gian thực mạnh mẽ bao gồm Apache Spark (Spark Streaming), Apache Kafka và hệ quản trị cơ sở dữ liệu quan hệ và đối tượng PostgreSQL.
+Công nghệ học máy – học sâu ứng dụng: Mô hình học máy Linear Regression được xây dựng bằng thư viện SKLearn và học sâu Hybrid LSTM–GNN được xây dựng bằng PyTorch; dữ liệu đầu vào của mô hình được chuẩn bị và quản lý thông qua pipeline dữ liệu lớn. 
+Sản phẩm thực nghiệm: Triển khai một ứng dụng web bằng FastAPI để cung cấp kết quả dự đoán cho giao diện trực quan hoặc các thành phần hệ thống khác. 
+1.4. Phương pháp nghiên cứu 
+Phương pháp học sâu nâng cao: Nghiên cứu lý thuyết và thuật toán về mạng tuần tự LSTM để lưu giữ thông tin dài hạn chuỗi thời gian, kết hợp mạng thần kinh đồ thị GNN để truyền tin và tổng hợp đặc trưng không gian cấu trúc thị trường. 
+Phương pháp xử lý dữ liệu lớn: Áp dụng kiến trúc xử lý dữ liệu luồng phân tán (Stream Processing). Dữ liệu giao dịch chứng khoán luôn được cập nhật liên tục từ thị trường, do đó nhóm nghiên cứu ứng dụng công nghệ Apache Kafka làm trung gian truyền tin và Apache Spark Streaming để xử lý dòng dữ liệu và chạy mô hình dự báo lập tức. 
+Phương pháp thực nghiệm kiểm định: Chạy thử nghiệm hệ thống, thu thập và đánh giá mô hình bằng các chỉ số sai số dự đoán như MSE, MAE, RMSE, kết hợp với Directional Accuracy và một số chỉ số đánh giá tài chính trong mô phỏng chiến lược giao dịch đơn giản nhằm phân tích, tinh chỉnh siêu tham số và so sánh hiệu quả giữa mô hình lai với các mô hình đơn lẻ.
+CHƯƠNG 2: CƠ SỞ LÝ THUYẾT
+2.1. Các kiến trúc dữ liệu lớn
+Hệ thống xử lý dữ liệu tài chính thời gian thực đòi hỏi một hạ tầng có khả năng hấp thụ luồng dữ liệu liên tục với tốc độ cao, xử lý tính toán phân tán nhằm trích xuất đặc trưng và đưa ra dự báo với độ trễ thấp. Kiến trúc dữ liệu lớn đề xuất dựa trên mô hình Lambda kết hợp các công nghệ mã nguồn mở hàng đầu thuộc hệ sinh thái Apache.
+2.1.1. Hệ thống hấp thụ dữ liệu thời gian thực (Apache Kafka)
+Apache Kafka là một nền tảng phân tán luồng dữ liệu (distributed streaming platform) hoạt động theo cơ chế Xuất bản - Đăng ký (Publish-Subscribe). Kafka được thiết kế để giải quyết bài toán xử lý dữ liệu quy mô lớn nhờ các đặc tính: chịu lỗi tốt (fault-tolerant), khả năng mở rộng ngang (horizontal scalability) và phân tán cao. 
+Cơ chế hoạt động: Dữ liệu luồng được tổ chức thành các Topics. Mỗi chủ đề được chia thành các Partitions lưu trữ trên nhiều máy chủ. Người tạo dữ liệu đẩy dữ liệu vào các phân vùng, và ứng dụng tiêu thụ dữ liệu đọc dữ liệu theo cơ chế phi đồng bộ độc lập. Nhờ cơ chế ghi nhật ký tuần tự trên đĩa cứng và sao lưu giữa các Broker, Kafka đảm bảo dữ liệu không bị mất mát ngay cả khi có sự cố phần cứng.
+Trong hệ thống dự đoán giá cổ phiếu, dữ liệu giao dịch (gồm các thông tin như mã cổ phiếu, giá khớp lệnh, khối lượng, thời gian giao dịch) được sinh ra liên tục theo từng giây từ các cổng API của sàn giao dịch. Apache Kafka được lựa chọn đóng vai trò là tầng hấp thụ dữ liệu giúp đệm luồng dữ liệu tài chính tải cao, đảm bảo phân phối dữ liệu thông suốt, không bị nghẽn mạch trước khi đẩy vào tầng xử lý tính toán.
+2.1.2. Nền tảng xử lý dữ liệu luồng phân tán (Apache Spark & Spark Structured Streaming)
+Apache Spark là một động cơ tính toán phân tán mã nguồn mở mạnh mẽ, nổi bật với cơ chế tính toán trong bộ nhớ (in-memory computing) giúp tối ưu hóa hiệu năng gấp hàng trăm lần so với mô hình MapReduce truyền thống của Hadoop. 
+Spark Structured Streaming: Là một engine xử lý luồng được xây dựng trên nền tảng Spark SQL. Nó xử lý luồng dữ liệu dưới dạng một bảng liên tục mở rộng (Unbounded Table). Dữ liệu mới từ luồng vào sẽ được coi là các dòng mới được chèn vào bảng.
+Cơ chế sliding window (Cửa sổ trượt): Cho phép tính toán các đặc trưng thống kê như trung bình động dịch chuyển theo chu kỳ thời gian thực thực tế dựa trên một khoảng thời gian quá khứ nhất định.
+Trong đề tài này, Spark Structured Streaming được sử dụng ở tầng xử lý trung tâm (Processing Layer). Engine này sẽ liên tục đăng ký tiêu thụ dữ liệu từ các Topic của Kafka, thực hiện các thao tác tiền xử lý, trích xuất đặc trưng kỹ thuật tài chính theo cơ chế cửa sổ trượt (sliding window) và chuyển đổi cấu trúc dữ liệu thô thành định dạng vector/ma trận phù hợp để làm đầu vào cho mô hình học sâu.
+2.1.3. Hệ quản trị cơ sở dữ liệu (PostgreSQL)
+PostgreSQL là một hệ quản trị cơ sở dữ liệu quan hệ đối tượng (ORDBMS) mã nguồn mở có lịch sử phát triển lâu đời, nổi tiếng với độ tin cậy, tính toàn vẹn dữ liệu cực cao và khả năng mở rộng mạnh mẽ. Khác với các hệ thống RDBMS truyền thống, PostgreSQL không chỉ xử lý xuất sắc dữ liệu có cấu trúc bằng ngôn ngữ SQL chuẩn mà còn hỗ trợ mạnh mẽ dữ liệu bán cấu trúc (Semi-structured data) nhờ vào các đặc tính kỹ thuật vượt trội:
+Đảm bảo tính toán vẹn dữ liệu: Tuân thủ nghiêm ngặt các tính chất ACID (Atomicity, Consistency, Isolation, Durability), giúp PostgreSQL bảo vệ hệ thống khỏi các trạng thái lỗi, tranh chấp tài nguyên hoặc xung đột dữ liệu khi bị truy cập đồng thời bởi tiến trình ghi từ luồng suy luận và tiến trình đọc từ phía người dùng.
+Quản lý cấu trúc dữ liệu lai đơn giản: Lưu trữ các thông tin mang tính ràng buộc quan hệ cao như thông tin định danh cổ phiếu, cấu trúc phân loại ngành, Model Registry của các checkpoint mô hình; đồng thời hỗ trợ kiểu dữ liệu JSONB để quản lý linh hoạt ma trận kề biến động của cấu trúc đồ thị mạng lưới.
+Tối ưu hóa truy vấn chuỗi thời gian: Khả năng lập chỉ mục tiên tiến (B-Tree, GIN Index) cho phép hệ thống dashboard truy xuất tức thời chuỗi giá trị thực tế và giá trị dự báo  mà không gây nghẽn hệ thống.
+Trong kiến trúc dữ liệu lớn phục vụ bài toán dự đoán giá đóng cửa cổ phiếu của nhóm, PostgreSQL đóng vai trò là Tầng phục vụ (Serving Layer) trung tâm nhằm:
+Quản lý dữ liệu cấu trúc phức tạp: Lưu trữ thông tin định danh của các mã cổ phiếu, cấu trúc phân loại ngành, danh mục ma trận kề của đồ thị mạng lưới liên kết giữa các doanh nghiệp – nơi đòi hỏi tính toàn vẹn và mối quan hệ ràng buộc chặt chẽ.
+Lưu trữ kết quả dự báo và chỉ số tài chính: Tiếp nhận luồng dữ liệu kết quả dự đoán giá đóng cửa cũng như các chỉ số chẩn đoán tài chính (Sharpe Ratio, Win Rate, Cumulative Return,...) được tính toán từ tầng Spark Streaming. Khả năng chịu tải và tính nhất quán dữ liệu của PostgreSQL đảm bảo ứng dụng Web Dashboard luôn truy xuất được các tín hiệu đầu tư chính xác, đồng bộ, không xảy ra hiện tượng sai lệch thông tin trong các phiên giao dịch thời gian thực.
+2.2. Các mô hình học máy – học sâu 
+2.2.1. Linear Regression
+	 Linear Regression (Hồi quy tuyến tính) là một trong những phương pháp nền tảng và kinh điển nhất trong học máy thống kê và phân tích chuỗi thời gian định lượng. Trong bài toán dự báo giá cổ phiếu cấu trúc tự hồi quy, mô hình này thiết lập một mối quan hệ tuyến tính phẳng giữa giá trị mục tiêu cần dự báo tại thời điểm tương lai với một tập hợp các giá trị trễ trong quá khứ được trích xuất từ cửa sổ trượt.
+Giả sử cửa sổ trượt chuỗi thời gian có độ dài cố định là . Đối với một mã cổ phiếu bất kỳ, tại bước thời gian , vector đặc trưng đầu vào biểu diễn chuỗi giá đóng cửa lịch sử của  ngày liên tiếp trước đó được định nghĩa là . Giá trị dự báo giá đóng cửa tại ngày kế tiếp  được tính toán thông qua tổ hợp tuyến tính phẳng của các đặc trưng đầu vào theo phương trình tổng quát sau:
+
+Trong đó:
+ là vector đặc trưng đầu vào chứa chuỗi giá trị đóng cửa trong cửa sổ trượt kích thước .
+ là vector hệ số trọng số thể hiện mức độ đóng góp và tầm quan trọng của từng bước thời gian quá khứ đối với giá trị dự báo tương lai.
+ là thành phần sai số chặn (Bias), đại diện cho giá trị kỳ vọng của biến phụ thuộc khi tất cả các biến độc lập trong cửa sổ trượt bằng 0.
+Trong giai đoạn huấn luyện, các tham số tối ưu  và  được học thông qua việc cực tiểu hóa hàm mất mát Mean Squared Error (MSE) trên toàn bộ tập mẫu huấn luyện kích thước :
+
+Quá trình tối ưu hóa này được thực thi bằng bộ tối ưu hóa Adam (hoặc thuật toán bình phương tối thiểu OLS) nhằm tìm ra mặt phẳng siêu việt tối ưu nhất để khớp với động lực học của chuỗi dữ liệu.
+Dữ liệu tài chính, đặc biệt là giá đóng cửa cổ phiếu, mang đặc tính tự hồi quy tuyến tính rất mạnh ngắn hạn (giá ngày hôm sau thường có xu hướng dao động tiệm cận xung quanh giá ngày hôm trước). Do đó, Linear Regression được lựa chọn đóng vai trò là một mô hình Baseline cực kỳ quan trọng trong đề tài này. Việc thiết lập một cấu hình Baseline tuyến tính phẳng cho phép nhóm nghiên cứu đánh giá một cách nghiêm ngặt, khách quan thặng dư hiệu năng. Từ đó, chứng minh liệu việc tiêu tốn tài nguyên tính toán để triển khai các kiến trúc học sâu phi tuyến phức tạp như LSTM hay mạng đồ thị GNN trên hạ tầng Dữ liệu lớn có thực sự mang lại giá trị cải thiện vượt trội cho hệ thống hỗ trợ ra quyết định tài chính hay không.
+2.2.2. Long Short-Term Memory - LSTM
+Mạng LSTM là một biến thể cải tiến của Mạng Recurrent Neural Network (RNN), được thiết kế nhằm khắc phục hiện tượng triệt tiêu đạo hàm (vanishing gradient) khi huấn luyện trên các chuỗi thời gian dài. LSTM duy trì một trạng thái bộ nhớ dài hạn (cell state - ) đóng vai trò như một "băng chuyền thông tin" xuyên suốt dòng thời gian, Tại mỗi bước thời gian , đơn vị LSTM nhận đầu vào và trạng thái ẩn từ bước trước  rồi tính toán theo thứ tự được điều tiết chặt chẽ bởi các cơ chế cổng như sau:
+Cổng quên (Forget Gate - ): Quyết định phần nào của trạng thái ô nhớ cũ () cần bị loại bỏ, phần nào sẽ được giữ lại. Nó nhìn vào  và , rồi cho ra một vector giá trị trong khoảng (0, 1) cho mỗi chiều . Giá trị  tức là giữ lại thông tin, còn  tức là xóa hoàn toàn thông tin.
+
+Cổng đầu vào quyết định thông tin mới nào sẽ được ghi vào ô nhớ. Nó gồm hai phần: cổng đầu vào  kiểm soát mức độ cập nhật, và vector ứng viên chứa thông tin mới được đề xuất.
+
+
+Trạng thái ô nhớ sau đó được cập nhật bằng cách kết hợp thông tin cũ  (được lọc qua cổng quên) và thông tin mới  (được lọc qua cổng đầu vào):
+
+Cổng đầu ra  quyết định phần nào của ô nhớ sẽ được xuất ra thành trạng thái ẩn . Kết quả cuối cùng được đưa đi làm đầu ra cho bước thời gian hiện tại, sau khi cell state được đi qua hàm tanh.
+
+
+Trong đó: 
+ là hàm kích hoạt sigmoid, 
+ đại diện cho phép nhân theo từng phần tử Hadamard, 
+ là vector đặc trưng tại thời điểm , 
+ là trạng thái ẩn tại thời điểm , 
+Ma trận  và vector  là các tham số học được trong quá trình huấn luyện.
+Dữ liệu chứng khoán bản chất là dữ liệu chuỗi thời gian có tính phụ thuộc phi tuyến tính cao vào quá khứ. LSTM được lựa chọn nhằm mục đích phân tích chuỗi giá đóng cửa lịch sử của từng mã cổ phiếu một cách độc lập, từ đó học sâu và trích xuất ra các đặc trưng xu hướng dòng thời gian nội tại của riêng mã cổ phiếu đó. 
+2.2.3. Graph Neural Networks (GNN)
+Khác với mạng thần kinh truyền thống hoạt động trên dữ liệu cấu trúc Euclid (như hình ảnh, văn bản), mạng GNN hoạt động trực tiếp trên cấu trúc đồ thị phi Euclid  với  là tập hợp các đỉnh (nodes) đại diện cho các thực thể và  là tập hợp các cạnh (edges) biểu diễn mối quan hệ giữa các thực thể.
+Một trong những mô hình phổ biến là Mạng tích chập đồ thị Graph Convolutional Network (GCN) thông qua một quy trình lan truyền thông tin (Message Passing) qua các tầng đồ thị được tính toán theo công thức ma trận:
+
+Trong đó:
+ là ma trận kề biểu diễn liên kết giữa  đỉnh.
+ là ma trận kề bổ sung thêm vòng lặp tự thân (self-loops) với  là ma trận đơn vị.
+ là ma trận bậc của , trong đó phần tử đường chéo được tính bằng .
+ là ma trận đặc trưng của các đỉnh ở tầng thứ  (với  chính là các đặc trưng đầu vào).
+ là ma trận trọng số cần huấn luyện tại tầng .
+Có thể thấy, thị trường chứng khoán là một mạng lưới phức tạp, nơi các mã cổ phiếu cùng ngành luôn có sự tương quan đồng biến hoặc nghịch biến sâu sắc. GNN được chọn để mô hình hóa toàn bộ thị trường thành một đồ thị, với các đỉnh là các mã cổ phiếu và các cạnh biểu diễn mối quan hệ phân loại ngành hoặc mức độ tương quan lịch sử. GNN có nhiệm vụ tổng hợp và truyền tin giữa các đỉnh lân cận, giúp mô hình bắt được các đặc trưng không gian và sự lan truyền rủi ro/dòng tiền chéo giữa các cổ phiếu. 
+2.2.4. Mô hình Hybrid LSTM – Graph Neural Network
+Hybrid LSTM-GNN là một sự kết hợp sức mạnh cấu trúc của cả hai mô hình trên nhằm tạo ra một kiến trúc Không gian - Thời gian toàn diện. Quy trình kết hợp này diễn ra theo hai bước cốt lõi:
+Trích xuất đặc trưng thời gian: Chuỗi thời gian lịch sử của tất cả các mã cổ phiếu trong mạng lưới được đưa qua các khối LSTM song song để chuyển đổi thành các vector biểu diễn trạng thái ẩn thời gian  cho từng đỉnh .
+Tích hợp đặc trưng không gian: Các vector trạng thái ẩn  này sau đó được sử dụng làm các đặc trưng đỉnh đầu vào  cho mạng GNN. Thông qua các tầng tích chập đồ thị, thông tin tương quan ngành và cấu trúc liên kết không gian được kết hợp vào đặc trưng ẩn, tạo ra vector biểu diễn cuối cùng tích hợp đầy đủ thông tin đa chiều để đưa vào tầng kết nối đầy đủ nhằm dự báo giá đóng cửa .
+Bản chất của việc biến động giá chứng khoán không thể giải quyết triệt để nếu chỉ nhìn vào dữ liệu quá khứ của chính nó do thiếu các yếu tố thị trường hoặc chỉ nhìn vào mối quan hệ ngành vì thiếu yếu tố động lực thời gian. Việc lựa chọn cấu trúc Hybrid LSTM-GNN đóng vai trò quyết định giúp nâng cao độ chính xác dự báo vượt trội so với các mô hình đơn lẻ thông thường nhờ cơ chế học sâu đa chiều. 
+2.3. Các chỉ số đánh giá
+Để chứng minh tính hiệu quả và độ tin cậy của hệ thống dự đoán, nhóm thực hiện đã áp dụng hệ thống chỉ số đánh giá đa chiều chia làm hai mảng độc lập: Đánh giá sai số toán học của mô hình và Đánh giá hiệu quả ứng dụng kinh doanh thực tế.
+2.3.1. Các chỉ số đánh giá hiệu năng mô hình
+Đây là các độ đo kiểm định khoảng cách sai số giữa giá trị dự đoán  và giá trị thực tế  của bài toán hồi quy chuỗi thời gian, áp dụng trên tập dữ liệu kiểm thử gồm  bước thời gian:
+Mean Absolute Error (MAE): Đo lường độ lớn trung bình của các lỗi dự báo mà không xét đến hướng của chúng.
+
+Root Mean Squared Error (RMSE): Do có bình phương khoảng cách lỗi trước khi lấy trung bình, RMSE rất nhạy cảm với các lỗi lớn, đặc biệt là các điểm dị biệt (outliers). 
+
+Mean Absolute Percentage Error (MAPE): Biểu diễn sai số dưới dạng tỷ lệ phần trăm, giúp dễ dàng so sánh hiệu năng mô hình giữa các cổ phiếu có thị giá khác biệt lớn.
+
+R-squared (R2): Đo lường tỷ lệ phần trăm biến động của biến phụ thuộc được giải thích bởi các biến độc lập trong mô hình.
+
+Trong đó  là giá trị trung bình thực tế của chuỗi giá cổ phiếu.
+Các chỉ số này được dùng làm hàm mục tiêu loss function phụ hoặc tiêu chí đánh giá trực tiếp trong quá trình huấn luyện và tối ưu hóa siêu tham số cho mô hình Hybrid LSTM-GNN. Mục tiêu của thuật toán là cực tiểu hóa các giá trị MAE, RMSE, MAPE tiến gần về 0 và đưa hệ số R2 tiệm cận về 1.
+2.3.3. Các chỉ số đánh giá ở mảng tài chính
+Một mô hình có sai số toán học nhỏ chưa chắc đã mang lại lợi nhuận tốt khi đưa vào đầu tư thực tế do tác động của độ trễ lệnh và xu hướng đảo chiều thị trường. Do đó, nhóm thực hiện đã thiết lập một hệ thống giả lập chiến lược giao dịch dựa trên tín hiệu mô hình (tín hiệu “Mua” khi  và “Bán/Đứng ngoài” khi ngược lại) để tính toán các chỉ số tài chính chuyên sâu sau:
+Độ chính xác định hướng (Directional Accuracy - DA): Đo lường tỷ lệ phần trăm mô hình dự đoán chính xác hướng dịch chuyển tăng hoặc giảm giá của cổ phiếu vào ngày hôm sau, bất kể độ lớn sai số tuyệt đối là bao nhiêu.
+
+Trong đó:
+ là hàm chỉ thị, trả về 1 nếu biểu thức đúng và 0 nếu sai; 
+ là hàm lấy dấu.
+Lợi nhuận tích lũy của chiến lược (Cumulative Return - ): Tổng mức sinh lời đạt được của danh mục đầu tư áp dụng tín hiệu từ mô hình xuyên suốt giai đoạn kiểm thử .
+
+Trong đó:  là tỷ suất sinh lời của chiến lược tại ngày .
+Lợi nhuận tích lũy Mua và Giữ (Benchmark Buy & Hold Cumulative Return - ): Lợi nhuận tích lũy đạt được nếu nhà đầu tư chỉ đơn thuần mua cổ phiếu tại ngày đầu tiên của tập test và nắm giữ cố định cho đến ngày cuối cùng mà không thực hiện giao dịch nào.
+
+Trong đó:  và  lần lượt là giá cổ phiếu ở ngày đầu và ngày cuối tập kiểm thử.
+Hệ số Sharpe của chiến lược (Sharpe Ratio - ): Thước đo tỷ lệ lợi nhuận trên một đơn vị rủi ro, thể hiện phần lợi nhuận vượt trội thu được khi chấp nhận biến động rủi ro của chiến lược.
+
+Trong đó:
+ là lợi nhuận thu được, 
+ là tỷ suất sinh lời phi rủi ro, thường lấy theo lãi suất trái phiếu chính phủ
+ là độ lệch chuẩn lợi nhuận của chiến lược
+Hệ số Sharpe Mua và Giữ (Benchmark Buy & Hold Sharpe Ratio -): Thể hiện hiệu quả điều chỉnh theo rủi ro của chiến lược đầu tư thụ động cơ bản, làm thước đo đối chiếu xem mô hình lai có thực sự tạo ra giá trị thặng dư rủi ro (Alpha) tốt hơn thị trường chung hay không.
+
+Mức sụt giảm tài sản lớn nhất của chiến lược (Maximum Drawdown - ): Chỉ số đo lường mức độ rủi ro giảm sâu lớn nhất (tính theo tỷ lệ phần trăm) từ một đỉnh cao nhất xuống đáy thấp nhất của giá trị danh mục trước khi một đỉnh mới được thiết lập trong suốt chu kỳ đầu tư.
+
+Trong đó:
+ là giá trị tài sản / danh mục tại thời điểm .
+ là giá trị đỉnh cao nhất của tài sản / danh mục đạt được trong quá khứ, tính từ lúc bắt đầu đầu tư cho tới thời điểm  hiện tại.
+Mức sụt giảm tài sản lớn nhất Mua và Giữ (Benchmark Buy & Hold Maximum Drawdown - ): Đo lường mức sụt giảm lớn nhất từ đỉnh xuống đáy của chính thị giá cổ phiếu trên thị trường, dùng để đánh giá năng lực phòng vệ rủi ro và hạn chế thua lỗ của chiến lược dùng mô hình so với việc chịu trận theo biến động thị trường.
+
+Trong đó: 
+ là giá đóng cửa thực tế của mã cổ phiếu (hoặc giá trị danh mục thị trường cơ sở) tại thời điểm .
+ là mức giá đỉnh cao nhất của cổ phiếu ghi nhận được tính từ thời điểm bắt đầu giai đoạn kiểm thử 0 cho đến thời điểm .
+Tỷ lệ thắng (Win Rate - ): Tỷ lệ phần trăm số ngày hoặc số lệnh giao dịch mà chiến lược sinh ra lợi nhuận dương trên tổng số ngày thực hiện đầu tư.
+
+Số lượng vị thế mở trung bình hàng ngày (Average Active Positions - ): Chỉ số thống kê chẩn đoán đo lường số lượng mã cổ phiếu trung bình mà mô hình khuyến nghị nhà đầu tư nắm giữ đồng thời trong danh mục ở mỗi phiên giao dịch, giúp đánh giá mức độ đa dạng hóa danh mục hoặc mức độ tập trung vốn của mô hình.
+
+Trong đó: là số lượng cổ phiếu đang mở vị thế mua nắm giữ tại ngày 
+Các chỉ số tài chính này mang ý nghĩa sống còn để chứng minh tính thực tiễn của đề tài. Một hệ thống tài chính chỉ thực sự có giá trị khi chiến lược dựa trên mô hình Hybrid đạt được: , lợi nhuận tích lũy vượt trội so với chiến lược cơ bản (), hệ số Sharpe cao hơn () để chứng minh hiệu quả sử dụng vốn, và đồng thời kiểm soát mức sụt giảm tài sản nhỏ hơn thị trường () nhằm đảm bảo an toàn vốn cho nhà đầu tư.
+
+CHƯƠNG 3: PHƯƠNG PHÁP THỰC HIỆN
+3.1. Kiến trúc hệ thống và quy trình thực nghiệm của nền tảng cơ sở
+3.1.1. Tổng quan 
+Nhóm thực hiện đã chọn bài báo Stock Price Prediction Using a Hybrid LSTM-GNN Model: Integrating Time-Series and Graph-Based Analysis  làm nền tảng cơ sở, hướng tới việc giải quyết bài toán hồi quy định lượng nhằm dự báo giá đóng cửa của các công cụ tài chính. Mục tiêu cốt lõi của nền tảng cơ sở là xây dựng và đánh giá thực nghiệm một mô hình học sâu lai tích hợp giữa cấu phần Không gian và Thời gian dựa trên sự kết hợp giữa mạng LSTM và mạng GNN. Để xác thực vị thế hiệu năng, nghiên cứu thiết lập một giao thức đối chiếu giữa mô hình lai đề xuất với 4 kiến trúc nền tảng baseline bao gồm: Linear Regression, Dense Neural Network, Conv1D và LSTM. 
+Hệ thống dữ liệu được khai thác từ giao diện lập trình ứng dụng tài chính trực tuyến, tập trung vào phân khúc cổ phiếu blue-chip cấu thành nên chỉ số sàn NASDAQ (Mỹ). Tập mẫu bao gồm 10 mã cổ phiếu đại diện đa ngành kinh tế: AAPL, ADBE, AMD, CMCSA, COST, INTC, INTU, MSFT, QCOM và SBUX. Cấu trúc dữ liệu thô bao gồm các trường thuộc tính cơ bản của chuỗi thời gian tài chính: Ngày giao dịch (Date), Giá mở cửa (Open), Giá cao nhất (High), Giá thấp nhất (Low), Giá đóng cửa (Close), Khối lượng giao dịch (Volume) và Giá đóng cửa điều chỉnh (Adjusted Close). Quá trình tổ chức lưu trữ phân ranh rõ rệt giữa hai kho lưu trữ: một kho lưu trữ dữ liệu lịch sử thô toàn vẹn phục vụ các mô hình tự hồi quy thời gian, và một kho dữ liệu đã qua bộ lọc xử lý đặc thù dành riêng cho phân hệ học sâu đồ thị không gian. 
+3.1.2. Quy trình phân tích khám phá dữ liệu và trích xuất đặc trưng sơ bộ
+Trước khi nạp dữ liệu vào các phân hệ mô hình hóa, nghiên cứu nền tảng thực hiện một quy trình phân tích khám phá dữ liệu mang tính hệ thống nhằm định hình không gian trạng thái của các chuỗi thời gian:
+Chuẩn hóa cấu trúc biên thời gian: Toàn bộ dữ liệu từ các nguồn được nạp vào bộ nhớ, thực hiện phân rã và chuẩn hóa định dạng thời gian đồng nhất theo cấu trúc Ngày-Tháng-Năm, đồng thời thiết lập thuộc tính Ngày làm chỉ mục trục thời gian. Hệ thống áp dụng bộ lọc biên, chỉ giữ lại các dữ liệu giao dịch phát sinh từ năm 2005 trở đi nhằm đảm bảo tính cập nhật của động lực học thị trường.
+Thống kê mô tả và trực quan hóa hình học: Tiến trình thực thi các hàm thống kê mô tả nhằm xác định các tham số phân phối (kỳ vọng, độ lệch chuẩn, các khoảng tứ phân vị) của từng mã cổ phiếu. Chuỗi biến động giá đóng cửa được trực quan hóa qua biểu đồ đường và biểu đồ nến Nhật nhằm phát hiện trực quan các xu hướng dài hạn và tính chu kỳ.
+Định lượng rủi ro nội tại: Chỉ số biến động (Volatility) của từng tài sản được xác định toán học thông qua độ lệch chuẩn của tỷ suất sinh lợi ngày ().
+Phân tích tương quan tuyến tính không gian sơ bộ: Để tìm kiếm dấu vết về sự phụ thuộc lẫn nhau giữa các thực thể kinh tế, phân hệ tính toán ma trận hệ số tương quan Pearson dựa trên giá trị tuyệt đối của giá đóng cửa giữa 10 mã cổ phiếu, kết xuất ra biểu đồ Heatmap làm cơ sở trực quan hóa ban đầu cho cấu trúc liên kết mạng lưới.
+3.1.3. Hệ thống mô hình đối chiếu baseline
+Để tạo lập một hệ thống tham chiếu khách quan, nghiên cứu gốc vận hành một đường luồng xử lý dữ liệu chung áp dụng đồng bộ cho cả 4 mô hình Baseline với các bước thiết lập nghiêm ngặt:
+Bước 1: Tiền xử lý đặc trưng bằng cách trích xuất duy nhất thông tin giá đóng cửa (Close) sau khi lọc mốc thời gian lớn hơn hoặc bằng năm 2005
+Bước 2: Chuẩn hóa miền giá trị bằng cách áp dụng bộ biến đổi giá trị cực tiểu - cực đại (MinMaxScaler) để ép miền giá trị của giá đóng cửa về khoảng biến thiên không gian toán học [0, 1]. Phép toán được thực thi độc lập cho từng mã cổ phiếu để tránh hiện tượng rò rỉ thông tin chéo: 
+
+Bước 3: Tập dữ liệu được phân ranh theo tỷ lệ cố định: 90% dành cho tập Train và 10% dành cho tập Test.
+Bước 4: Thiết lập Sliding Window cố định  ngày để mô hình hóa tính tự hồi quy. Nghĩa là, chuỗi giá trị biến đổi của 30 ngày liên tiếp trước đó (từ ngày  đến ngày ) được sử dụng làm biến độc lập để dự báo giá trị của  ngày kế tiếp. Tensor đầu vào được reshape về cấu trúc 3 chiều có định dạng  để tương thích với các tầng xử lý tuần tự.
+Kiến trúc và tham số cấu hình của từng mô hình Baseline được thiết lập như sau:
+Khối Linear Regression Baseline: thiết lập mối liên hệ tuyến tính phẳng giữa các bước thời gian trong cửa sổ trượt. Một tầng kết nối toàn bộ (Dense Layer) với cấu hình kích thước đầu ra bằng 1, áp dụng hàm kích hoạt tuyến tính trên không gian đầu vào 30 chiều. Các tham số vận hành bao gồm: Bộ tối ưu hóa Adam; hàm mất mát (Loss function) là Sai số bình phương trung bình MSE; cơ chế Early Stopping với hệ số Patience bằng 3; giới hạn kỷ nguyên huấn luyện tối đa là 50; kích thước Batch size bằng 32. Hiệu năng toàn cục được đánh giá bằng giá trị trung bình MSE của cả 10 mã cổ phiếu.
+Mạng Dense Neural Network Baseline: Cấu trúc phân tầng tuần tự bao gồm 3 tầng ẩn kết nối toàn bộ với mật độ nơ-ron giảm dần từ 128 xuống còn 1. Hàm mất mát sử dụng Huber Loss nhằm giảm thiểu độ nhạy cảm đối với các giá trị dị biệt dữ liệu (Outliers). Cơ chế Early Stopping đặt ngưỡng kiên nhẫn bằng 5. 
+Mạng Convolutional Neural Network Baseline: Trích xuất đặc trưng cục bộ theo chiều thời gian thông qua các bộ lọc tích chập. Các tham số vận hành gồm hàm mất mát Huber Loss và cơ chế Early Stopping với hệ số Patience bằng 3. 
+Mạng Standalone LSTM Baseline: Sử dụng các cổng lọc nơ-ron tuần tự để kiểm soát luồng thông tin dài hạn. Các tham số vận hành gồm Hàm mất mát Huber Loss; cơ chế Early Stopping với hệ số Patience bằng 3. 
+3.1.4. Kiến trúc mô hình Hybrid LSTM-GNN
+3.1.4.1. Tiền xử lý và làm giàu đặc trưng không gian
+Khác biệt với các Baseline, phân hệ này nạp dữ liệu từ kho lưu trữ đã qua bộ lọc, tiến hành tính toán thêm đường trung bình trượt chu kỳ 20 ngày (Moving Average - MA20) cho từng mã cổ phiếu. Cấu trúc dữ liệu đầu vào tại một thời điểm được mở rộng thành một ma trận đặc trưng tổng hợp gồm 20 chiều (kết hợp từ 10 mã cổ phiếu, mỗi cổ phiếu sở hữu 2 trường thông tin: Giá trị đóng cửa thực tế và giá trị MA20). Hệ thống tự động cắt bỏ 20 hàng dữ liệu đầu kỳ giao dịch nhằm loại bỏ nhiễu khởi động của thuật toán MA. 
+3.1.4.1. Xây dựng cấu trúc cấu hình đồ thị (Graph Construction)
+Mối quan hệ liên kết giữa các đỉnh đồ thị được thiết lập dựa trên việc tích hợp đồng thời hai phương pháp: 
+Đồ thị tương quan tuyến tính: Tính toán hệ số tương quan Pearson  dựa trên chuỗi tỷ suất sinh lợi ngày giữa các cặp cổ phiếu  và . Một cạnh nối vô hướng được thiết lập giữa hai đỉnh nếu và chỉ nếu giá trị tuyệt đối của hệ số tương quan vượt ngưỡng nghiêm ngặt: . 
+Đồ thị khai phá luật kết hợp phi tuyến: Sử dụng thuật toán Apriori để phát hiện các quy luật đồng biến động phi tuyến tính của thị trường dựa trên xu hướng đóng cửa của các phiên giao dịch. Nghiên cứu thiết lập bộ lọc dựa trên ba chỉ số: Độ hỗ trợ (Support), Độ tin cậy (Confidence) và Độ nâng (Lift). Cạnh nối chỉ được chấp nhận bổ sung vào đồ thị tổng hợp nếu chỉ số Độ nâng vượt ngưỡng cấu hình: . 
+Toàn bộ cấu trúc liên kết mạng lưới này được chuyển đổi cấu trúc dữ liệu thành định dạng danh sách cạnh (Edge Index) chuyên dụng tương thích với thư viện xử lý đồ thị hình học của PyTorch Geometric. 
+
+Hình 1. Mạng liên kết cổ phiếu Pearson + Association
+3.1.4.2. Lan truyền thông tin qua kiến trúc mạng Hybird
+Quy trình xử lý và truyền dẫn tín hiệu trong kiến trúc mạng Không gian - Thời gian của nghiên cứu gốc được tổ chức phân tầng tuần tự qua các phân hệ chức năng sau:
+Phân hệ khai thác động lực học thời gian đầu kỳ: Tensor dữ liệu chuỗi thời gian thô của các mã cổ phiếu sau khi qua phân đoạn trích xuất cửa sổ trượt được nạp trực tiếp vào lớp mạng Bộ nhớ dài ngắn hạn thứ nhất (LSTM Layer 1). Lớp này chịu trách nhiệm trích xuất cấu trúc phụ thuộc thời gian tự hồi quy nội tại của từng thực thể tài sản độc lập.
+Khối chuyển đổi không gian tuyến tính: Đầu ra dạng trạng thái ẩn của tầng thời gian được đưa qua hai tầng tuyến tính liên tiếp nhằm điều chỉnh và cấu trúc lại số chiều vector đặc trưng:
+Tầng tuyến tính thứ nhất thực hiện mở rộng không gian ẩn, chiếu vector đặc trưng lên không gian phẳng 256 chiều.
+Tầng tuyến tính thứ hai thực` hiện nén và chuẩn hóa kích thước không gian vector đầu ra để tương thích với cấu hình đồ thị kế tiếp.
+Tầng tích chập đồ thị không gian thứ nhất: Đặc trưng sau khi chuyển đổi tuyến tính được nạp vào lớp tích chập đồ thị tùy biến thứ kế thừa từ cơ chế lan truyền thông điệp. Tại đây, thông tin vi cấu trúc được khuếch tán và tổng hợp từ các nút láng giềng dựa trên ma trận kề chuẩn hóa, kết hợp với hàm kích hoạt phi tuyến LeakyReLU và tầng kiểm soát quá khớp Dropout để chống hiện tượng nghẽn mạng nơ-ron.
+Tầng tích chập đồ thị không gian thứ hai: Luồng thông tin không gian tiếp tục được chuyển giao qua lớp tích chập đồ thị tùy biến thứ hai. Mục tiêu của tầng này là nâng cao năng lực biểu diễn dữ liệu phi Euclid, giúp mô hình học và trích xuất sâu hơn các mối quan hệ tương quan cấu trúc phức hợp bậc cao lan truyền xuyên ngành trên thị trường tài chính.
+Khối tái cấu trúc dữ liệu: Kết quả đầu ra từ phân hệ tích chập đồ thị được xử lý tập trung thông qua hàm biến đổi cấu trúc. Tiến trình này đóng vai trò đồng bộ hóa cấu trúc kích thước của các tensor đặc trưng không gian, đảm bảo tính toàn vẹn của dữ liệu lô trước khi chuyển giao ngược lại vùng tính toán chuỗi thời gian tuần tự.
+Phân hệ hội tụ thời gian và kết xuất thặng dư đầu ra: Tensor đặc trưng tích hợp Không gian - Thời gian cuối cùng được nạp vào lớp mạng Bộ nhớ dài ngắn hạn thứ hai nhằm tổng hợp toàn diện các quy luật biến động động học. Cuối cùng, luồng dữ liệu đi qua một tầng kết nối toàn bộ đóng vai trò bộ phân loại đầu ra để kết xuất ra giá trị thặng dư dự báo , hoàn thành chu kỳ tính toán của mô hình lai.
+Trong đó, lớp tích chập đồ thị tùy biến (Custom GNN Layer) được xây dựng dựa trên việc kế thừa lớp cơ sở lan truyền thông điệp của PyTorch. Bên trong cấu phần này chứa 2 tầng tuyến tính kết nối toàn bộ; quá trình tổng hợp thông tin từ các đỉnh láng giềng sử dụng hàm hợp nhất dạng toán tử cộng kết hợp với cơ chế chuẩn hóa dựa trên bậc của đỉnh đồ thị theo tỷ lệ nghịch đảo căn bậc hainhằm mục tiêu đảm bảo sự cân bằng về mức độ ảnh hưởng giữa các nút có bậc khác nhau trên mạng lưới liên kết. 
+3.1.5. Chiến lược huấn luyện động 
+Nghiên cứu gốc đã áp dụng cơ chế kiểm thử cửa sổ mở rộng (Expanding Window Validation) để mô phỏng điều kiện giao dịch thực tế. Mô hình được cấu hình huấn luyện trên một cửa sổ thời gian ban đầu kéo dài 2 năm, sau đó thực hiện kiểm thử và dự báo cuốn chiếu từng ngày một trong quỹ thời gian 50 ngày tiếp theo. Sau mỗi bước kiểm thử, dữ liệu của ngày vừa dự báo được tích hợp ngược trở lại tập huấn luyện để mở rộng không gian mẫu, và mô hình thực hiện tối ưu hóa lại tham số. Quá trình tìm kiếm siêu tham số tối ưu được thực thi thông qua thuật toán Grid search trên các chiều không gian gồm tốc độ học Learning rate, số lượng kỷ nguyên, và kích thước lô dữ liệu. Bộ tối ưu hóa Adam phối hợp cùng hàm mất mát MSE được duy trì làm mục tiêu hội tụ toán học cho toàn bộ tiến trình. 
+3.2. Những điểm bất cập và đề xuất giải pháp cải tiến hệ thống 
+3.2.1. Các bất cập kỹ thuật và thực nghiệm tồn tại trong nghiên cứu gốc
+Dưới góc độ kỹ thuật hệ thống dữ liệu lớn và lý thuyết tài chính định lượng cao cấp, cấu trúc thiết kế của nghiên cứu nền tảng còn nhiều hạn chế, cụ thể như sau:
+3.2.1.1. Sự bất đối xứng nghiêm trọng trong giao thức kiểm thử 
+Trong khi 4 mô hình Baseline được cấu hình vận hành trên một phân tách dữ liệu tĩnh cố định theo tỷ lệ hình học 90/10 (huấn luyện tĩnh một lần trên 90% dữ liệu lịch sử và kiểm thử trên 10% còn lại), thì mô hình lai chính (Hybrid LSTM-GNN) lại được vận hành trên cơ chế cửa sổ mở rộng động (Expanding Window). 
+Sự bất đối xứng này vi phạm nguyên tắc so sánh đồng điều kiện trong nghiên cứu. Việc mô hình lai được tối ưu hóa cuốn chiếu, liên tục tiếp cận và "nhìn" thấy dữ liệu cập nhật của ngày liền trước chỉ mang lại cho nó một lợi thế toán học vượt trội về mặt giảm thiểu sai số, chứ không hoàn toàn phản ánh rằng sự cải tiến hiệu năng là do cấu phần đồ thị không gian mang lại. 
+3.2.1.2. Hiện tượng bất thường trong giai đoạn 2020 – 2021 
+Thực nghiệm của tác giả gốc ghi nhận một hiện tượng nghịch lý: Trong các giai đoạn thị trường chịu áp lực biến động cực đoan (như khủng hoảng đại dịch COVID-19 giai đoạn 2020 – 2021), mô hình cơ sở độc lập LSTM lại đạt kết quả tối ưu hơn mô hình lai Hybrid. Hiện tượng này chưa được tác giả gốc lý giải một cách tường minh. 
+Bản chất là do tác động mạnh của đại dịch làm đứt gãy các mối quan hệ kinh tế vĩ mô, khiến quan hệ tương quan ngành không còn tuân theo quy luật lịch sử. Cấu trúc ma trận kề được tính toán dựa trên dữ liệu lịch sử ổn định trước đó đã bị nhiễu nghiêm trọng, trở thành các thông tin sai lệch. Do mạng GCN thực hiện việc khuếch tán thông điệp dựa trên một ma trận kề bị nhiễu, luồng thông tin không gian sai lệch này đã làm suy giảm nghiêm trọng độ chính xác của bộ dự báo tổng hợp, khiến GNN phản tác dụng.
+3.2.1.3. Hạn chế về đặc trưng và tính tĩnh của kiến trúc dữ liệu 
+Hệ thống xử lý của tác giả gốc được thiết kế theo tư duy xử lý tệp tĩnh, hoàn toàn phụ thuộc vào việc đọc ghi thủ công các tệp dữ liệu cục bộ. Hệ thống hoàn toàn thiếu vắng một hạ tầng xử lý dữ liệu lớn phân tán để giải quyết bài toán luồng dữ liệu biến động thời gian thực.
+Hơn nữa, không gian đặc trưng của nghiên cứu gốc quá nghèo nàn: Các Baseline chỉ sử dụng duy nhất trường giá đóng cửa , trong khi mô hình lai chỉ bổ sung thêm một chỉ báo MA20. Sự thiếu hụt các đặc trưng tài chính động sâu (như tỷ suất sinh lợi trượt, các chỉ số đo lường rủi ro hệ thống, và các đường trung bình động đa chu kỳ) khiến mô hình dễ rơi vào trạng thái quá khớp và không thể nhận diện được các mẫu hình vi cấu trúc thị trường. 
+3.2.2. Đề xuất giải pháp cấu trúc và phương pháp thay thế 
+Để khắc phục triệt để các hạn chế của nghiên cứu gốc, đề tài này đề xuất một giải pháp kiến trúc tổng thể, tích hợp hạ tầng Dữ liệu lớn phân tán mạnh mẽ kết hợp với một giao thức thực nghiệm chuẩn mực khoa học:
+3.2.2.1. Thiết lập giao thức kiểm thử công bằng 
+Nhóm thực hiện đã bỏ hoàn toàn cơ chế chia tách dữ liệu tĩnh bất đối xứng của nghiên cứu gốc. Thay vào đó, tất cả các mô hình tham chiếu (bao gồm Hybrid LSTM-GNN, LSTM đơn lẻ và Linear Regression) đều được đặt vào cùng một môi trường huấn luyện động cuốn chiếu sử dụng cơ chế Expanding Window Backtest.
+Mỗi mô hình đều sử dụng chung một tập dữ liệu lịch sử kéo dài 20 năm (2005 – 2025), bắt đầu với cấu hình 2 năm huấn luyện ban đầu (EXP_INITIAL_TRAIN_DAYS = 504 ngày), cửa sổ validation gồm 50 ngày để tối ưu tham số early_stopping, và thực hiện kiểm thử rolling liên tục trên chuỗi 50 ngày test với mỗi bước tịnh tiến mở rộng thêm 1 ngày. Điều này triệt tiêu hoàn toàn lợi thế lệch dữ liệu, đảm bảo mọi sự cải tiến về mặt chỉ số MSE đều đến từ bản chất kiến trúc nơ-ron.
+3.2.2.2. Kiến trúc tách biệt môi trường tính toán 
+Để giải quyết triệt để rủi ro xung đột tài nguyên hiệu năng giữa môi trường máy ảo Java (JVM) của Apache Spark và môi trường đồ thị nơ-ron của PyTorch, nhóm đề xuất giải pháp kiến trúc tách biệt môi trường tính toán thành các Docker containers độc lập.
+Spark chỉ tập trung thực hiện nhiệm vụ thu nạp, làm sạch và kết xuất Parquet lên MinIO. PyTorch sẽ độc lập tải các tệp Parquet này về, thực hiện gộp dữ liệu với chuỗi lịch sử, và chuẩn hóa miền giá trị bằng bộ biến đổi động trượt Rolling MinMaxScaler với kích thước cửa sổ cố định 60 ngày gần nhất. Giải pháp này giúp đảm bảo toàn bộ miền giá trị hiện tại (giai đoạn 2025 – 2026) luôn được ép về khoảng [0, 1] một cách chính xác mà không bị ảnh hưởng bởi sự lệch pha giá trị so với quá khứ xa.
+Sau đó, hệ thống xây dựng ma trận kề chuẩn hóa đối xứng  kích thước  kết hợp giữa bộ lọc Pearson ( với ) và thuật toán luật kết hợp Apriori (, , , ). Toàn bộ các trường dữ liệu bao gồm chuỗi thời gian Close, ma trận đặc trưng nút, và ma trận kề chuẩn hóa được đóng gói chặt chẽ thành một tập tin dữ liệu nhị phân nén trung gian cấu trúc .npz. Tiến trình PyTorch Inference độc lập nạp tập tin nhị phân này để thực thi hàm suy luận xuôi trong trạng thái khóa gradient (torch.no_grad()), kết xuất kết quả dự báo ra định dạng JSON để ghi ngược vào PostgreSQL, loại bỏ hoàn toàn việc nhúng trực tiếp PyTorch vào luồng Spark Structured Streaming.
+3.2.2.3. Làm giàu tập đặc trưng động đa chiều 
+Nhóm thực hiện đề xuất không gian trạng thái tại mỗi nút đồ thị từ 1 hoặc 2 đặc trưng đơn lẻ của nghiên cứu gốc lên thành một cấu trúc ma trận đặc trưng tài chính chuyên sâu gồm 7 thuộc tính cốt lõi  được tính toán động liên tục trên cửa sổ trượt:
+Close (Giá đóng cửa): Phản ánh giá trị hội tụ cuối phiên giao dịch.
+Volume (Khối lượng giao dịch): Biểu thị động lực thanh khoản và áp lực cung cầu của thị trường.
+Return (Tỷ suất sinh lợi phiên): Đo lường phần trăm thay đổi giá trị để nắm bắt động lượng tăng trưởng: .
+MA5 (Trung bình trượt 5 phiên): Chỉ báo xu hướng ngắn hạn theo tuần.
+MA20 (Trung bình trượt 20 phiên): Chỉ báo xu hướng trung hạn theo tháng.
+Volatility5 (Độ lệch chuẩn 5 phiên): Đo lường rủi ro vi cấu trúc và độ biến động ngắn hạn của tài sản.
+Volatility20 (Độ lệch chuẩn 20 phiên): Đo lường rủi ro hệ thống và độ biến động trung hạn của tài sản.
+Việc mở rộng không gian đặc trưng lên 7 chiều toán học giúp GCN thực hiện thuật toán lan truyền một cách phong phú, nắm bắt sâu sắc các trạng thái rủi ro lan truyền chéo giữa các doanh nghiệp đa ngành trên thị trường tài chính NASDAQ.
+3.2.2.4. Kiến trúc Big Data chủ đạo 
+
+Hình 2. Sơ đồ tổng quan hệ thống dự đoán giá cổ phiếu đóng trên kiến trúc Big Data
+Hệ thống được tái cấu trúc toàn diện theo mô hình kiến trúc Lambda phân tán, phân tách rõ ràng thành hai phân hệ xử lý song song để giải quyết bài toán dữ liệu real-time từ nguồn tài chính. Khi hệ thống khởi tạo, một thành phần Message Producer sẽ đọc tuần tự các dòng dữ liệu từ bộ đệm này và đóng gói thành các cấu trúc thông điệp định dạng JSON trực tuyến, đẩy liên tục vào hệ thống hàng đợi thông điệp phân tán Apache Kafka. Giải pháp này giúp giả lập hoàn chỉnh và chính xác một luồng dữ liệu streaming thời gian thực để xử lý. Cụ thể như sau:
+Tầng Thu nhận dữ liệu (Ingestion Layer):
+Python Producer đọc dữ liệu từ bộ đệm cục bộ hoặc yfinance API.
+Đóng gói thành cấu trúc thông điệp JSON trực tuyến.
+Đẩy liên tục theo chu kỳ vào hàng đợi phân tán Apache Kafka.
+Tầng Xử lý dữ liệu (Processing Layer):
+Apache Spark tiêu thụ luồng thông điệp từ Apache Kafka từ earliest đến latest offset.
+Spark parse JSON, chuẩn hóa schema, lọc bỏ trường dữ liệu rỗng.
+Ghi dữ liệu sạch đồng bộ vào bảng đệm trực tuyến PostgreSQL để truy vấn nhanh.
+Xuất song song dữ liệu sạch ra tệp định dạng cột Parquet, dùng coalesce(1) tránh phân mảnh tệp nhỏ.
+Tầng Lưu trữ và Chuẩn bị dữ liệu:
+Đồng bộ các tệp Parquet từ thư mục cục bộ lên MinIO Object Storage thông qua Sync Script làm Data Lakehouse lịch sử.
+Build Bundle Script tải tệp Parquet từ MinIO, chuẩn hóa đặc trưng (MinMaxScaler) và ghép các ticker.
+Đóng gói dữ liệu đầu vào thành tệp nén nhị phân Bundle .npz để phục vụ mô hình học máy độc lập.
+Tầng Dự báo AI:
+Bộ suy luận PyTorch nạp tệp .npz làm đầu vào.
+Sử dụng mô hình tối ưu đã lưu Model Checkpoint .pt (kiến trúc lai LSTM-GNN Graph-Gate) để tính toán dự báo.
+Xuất kết quả dự báo giá đóng cửa dưới dạng Output JSON.
+Save Script đọc kết quả và ghi vào bảng PostgreSQL.
+Apache Airflow giám sát Concept Drift (nếu ngày dự báo cuối và hiện tại lệch >= 20 ngày, tự động kích hoạt huấn luyện lại mô hình trên MinIO).
+Tầng Phục vụ:
+FastAPI Backend cung cấp các REST API truy vấn PostgreSQL lấy danh mục, kết quả dự báo, lịch sử vận hành.
+Tích hợp Gemini API phân tích kết quả dự báo để đưa ra khuyến nghị.
+Frontend Dashboard (React / TradingView Lightweight Charts) hiển thị biểu đồ nến Nhật thực tế song song giá dự báo và ma trận tương quan cổng đồ thị thời gian thực cho người dùng. 
+CHƯƠNG 4: KẾT QUẢ ĐÁNH GIÁ
+4.1. Kết quả các chỉ số đánh giá hiệu năng của mô hình học máy – học sâu
+4.1.1. Kết quả đánh giá trên môi trường thực nghiệm tĩnh
+Kết quả trong Môi trường Thực nghiệm tĩnh được trình bày thành hai bảng riêng: bảng trên thang dữ liệu chuẩn hóa MinMaxScaler và bảng trên đơn vị giá USD thực tế sau khi inverse transform. Chỉ số Directional Accuracy (DA) được đưa vào Bảng 2 và Bảng 3 đóng vai trò làm cầu nối trực tiếp giữa tầng kỹ thuật toán học và tầng hiệu quả tài chính. Khác với các chỉ số sai số tuyệt đối (MSE, RMSE, MAE) vốn chỉ đo lường khoảng cách giá, DA đo lường chính xác khả năng nhận diện hướng biến động tăng/giảm của thị trường. 
+Bảng 1. Kết quả đánh giá mô hình trong Môi trường Thực nghiệm tĩnh trên thang MinMaxScaler
+Dựa vào kết quả Bảng 2, mô hình Linear Regression đạt MSE thấp nhất với giá trị 0.002041. Hai biến thể Hybrid LSTM-GNN có MSE rất sát Linear Regression, lần lượt là 0.002045. LSTM thuần có MSE cao hơn nhẹ ở mức 0.002080. Nếu chỉ xét sai số trên thang chuẩn hóa, sự khác biệt giữa các mô hình không quá lớn. Tuy nhiên, DA lại có sự phân hóa rõ hơn: Linear Regression đạt 53.4%, trong khi Graph-Gate đạt 42.0%, No-Gate đạt 41.4% và LSTM thuần đạt 40.0%.
+Kết quả này cho thấy trong Môi trường Thực nghiệm tĩnh, mô hình học máy tuyến tính vẫn tạo ra tín hiệu hướng tốt hơn so với các mô hình học sâu. Có thể thấy rằng, việc bổ sung LSTM và GNN không đảm bảo cải thiện trong mọi cấu hình thực nghiệm. Mô hình học sâu có nhiều tham số hơn, nhạy hơn với cách chuẩn hóa, cách xây graph, chiến lược huấn luyện và biến động của giai đoạn kiểm thử.
+Bảng 2. Kết quả đánh giá mô hình trong Môi trường Thực nghiệm tĩnh trên đơn vị giá USD thực tế
+Kết quả các chỉ số ở Bảng 3 vẫn giữ xu hướng tương tự: Linear Regression có MSE thấp nhất, tiếp đến là Hybrid No-Gate, Hybrid Graph-Gate và cuối cùng là LSTM thuần. Tuy nhiên, khoảng cách giữa các mô hình không quá lớn nếu xét MAPE. Cả bốn mô hình đều có MAPE quanh mức 1.9%, cho thấy sai số tương đối trung bình không quá cao.
+Điểm đáng chú ý là R² của tất cả mô hình đều rất cao, xấp xỉ 0.999. Điều này không nên được hiểu là mô hình đã dự báo gần như hoàn hảo. Với chuỗi giá đóng cửa cổ phiếu, giá ngày kế tiếp thường rất gần giá ngày trước đó, do đó R² có thể cao ngay cả khi mô hình chưa dự báo tốt chiều biến động. Vì vậy, R² chỉ nên được xem là chỉ số bổ trợ, còn MAPE và DA nên được xem xét kỹ hơn khi đánh giá khả năng ứng dụng tài chính.
+
+Hình 3. Ma trận tương quan Pearson giữa 10 mã cổ phiếu trong môi trường thực nghiệm tĩnh
+Dựa trên ma trận tương quan Pearson tại Hình 2, ta thấy có sự đồng biến động rất mạnh (tương quan dương lớn hơn 0.50) giữa các mã cổ phiếu cùng nhóm ngành công nghệ và bán dẫn như AAPL, MSFT, AMD, ADBE và QCOM. Ví dụ, hệ số tương quan giữa AAPL và MSFT đạt mức cao, phản ánh xu hướng chung của dòng vốn lớn khi dịch chuyển vào nhóm công nghệ NASDAQ. Ngược lại, các mã bán lẻ hay hàng tiêu dùng như COST hay SBUX có hệ số tương quan thấp hơn hoặc mang tính chất phòng thủ rõ rệt. Đây chính là cơ sở dữ liệu thực tế chứng minh bài toán dự báo chuỗi thời gian đơn lẻ (LSTM thuần) sẽ bỏ sót các thông tin tương quan không gian này, mở ra động lực cốt lõi để tích hợp cấu phần đồ thị GNN nhằm truyền tải và tổng hợp tín hiệu lan tỏa chéo giữa các cổ phiếu.
+
+Hình 4. Biên động MSE theo từng ngày kiểm thử với expanding window trong môi trường tĩnh
+
+Hình 5. Biểu đồ heatmap thể hiện sai số RMSE chuẩn hóa theo giá trị trung bình từng mã cổ phiếu
+
+Hình 6. So sánh giá thực tế và giá dự báo của một số mã đại diện
+Quan sát diễn biến tại Hình 6 đối với các mã đại diện như INTC, MSFT và COST, ta thấy các đường dự báo của Linear Regression, LSTM và Hybrid đều bám rất sát đường giá thực tế của thị trường. Hiện tượng này là do đặc trưng tự hồi quy mạnh của chuỗi giá đóng cửa cổ phiếu (giá ngày t luôn rất gần giá ngày t-1). Tuy nhiên, đi sâu vào các pha đảo chiều ngắn hạn, mô hình Hybrid Graph-Gate thể hiện độ nhạy cao hơn, giảm thiểu hiện tượng trễ pha thường gặp ở LSTM thuần nhờ nhận diện sớm tín hiệu đồng biến động từ các nút lân cận trên đồ thị.
+4.1.2. Kết quả đánh giá mô hình trên kiến trúc Big Data
+Khác với Môi trường Thực nghiệm tĩnh, kết quả từ kiến trúc Big Data được xuất ra từ file kết quả riêng của hệ thống phân tán. Bảng 4 dưới đây giữ nguyên nhóm chỉ số gồm MSE, MAE, RMSE và DA. Các chỉ số MAPE và R² không được xuất theo từng mô hình trong bảng này, do đó không tự bổ sung hoặc suy diễn để tránh làm sai lệch dữ liệu gốc.
+Bảng 3. Kết quả đánh giá hiệu năng trên kiến trúc Big Data
+Dựa vào kết quả trong Bảng 4, trong môi trường Big Data, mô hình Hybrid LSTM-GNN Graph-Gated đạt hiệu năng tốt nhất trong cả bốn chỉ số được xuất ra. MSE của Hybrid là 0.000917, thấp hơn LSTM thuần 0.000011 và thấp hơn Linear Regression đáng kể. Nếu so với Linear Regression, MSE của Linear là 0.002440, cao xấp xỉ 2.66 lần so với mô hình Hybrid. Điều này cho thấy mô hình tuyến tính không đủ khả năng mô hình hóa các quan hệ phi tuyến trong biến động giá cổ phiếu.
+So với LSTM thuần, mức cải thiện MSE của Hybrid không quá lớn về giá trị tuyệt đối. MSE giảm từ 0.000928 xuống 0.000917. Đây là một cải thiện cận biên nhưng nhất quán. Điểm đáng chú ý hơn nằm ở DA: Hybrid đạt 57.20%, LSTM đạt 56.20%, còn Linear Regression đạt 53.20%. Trong tài chính định lượng, chênh lệch 1 điểm phần trăm ở Directional Accuracy giữa Hybrid và LSTM có thể tạo ra khác biệt đáng kể khi được đưa vào chiến lược giao dịch lặp lại qua nhiều ngày, nhất là khi chiến lược có cơ chế chọn lọc vị thế và giữ tiền mặt khi tín hiệu không đủ mạnh.
+Kết quả này cho thấy đóng góp của Graph-Gate không nằm ở việc làm giảm sai số giá một cách đột biến, mà nằm ở việc cải thiện khả năng nhận diện chiều biến động. Đây là điểm phù hợp với bản chất của GNN trong bài toán cổ phiếu: graph không thay thế hoàn toàn thông tin chuỗi thời gian, mà bổ sung tín hiệu quan hệ chéo giữa các mã để điều chỉnh dự báo của LSTM.
+4.1.3. Phân tích hiệu năng theo từng mã cổ phiếu
+Để đánh giá sâu hơn, cần quan sát kết quả theo từng ticker thay vì chỉ nhìn vào chỉ số trung bình toàn hệ thống. 
+Bảng 4. MSE theo từng mã cổ phiếu trên kiến trúc Big Data
+
+Hình 7. Biểu đồ cột so sánh sai số MSE theo từng mã cổ phiếu trên kiến trúc Big Data
+Kết quả Bảng 5 và Hình 6 cho thấy mô hình Hybrid tốt hơn LSTM ở 6/10 mã cổ phiếu. Các mã có mức cải thiện dương bao gồm COST, AAPL, MSFT, INTU, AMD và ADBE. Trong đó COST có mức cải thiện lớn nhất, giảm MSE từ 0.001999 xuống 0.001952. AAPL và MSFT cũng ghi nhận mức cải thiện rõ, lần lượt là 0.000027 và 0.000026. Tuy nhiên, sai số ở một số mã đơn lẻ như INTC hay QCOM lại cao hơn nhẹ so với LSTM thuần. Điều này chứng minh rằng luồng thông tin không gian từ đồ thị đôi khi chứa nhiễu đối với các cổ phiếu có động lực nội tại riêng biệt, lý giải sự cần thiết của cơ chế cổng Graph-Gate để tự học cách ngắt liên kết khi cần thiết.
+Về mặt diễn giải mô hình, các mã như AAPL, MSFT, AMD và ADBE có quan hệ tương đối rõ với nhóm công nghệ và bán dẫn. Việc bổ sung thông tin từ đồ thị có thể giúp mô hình khai thác một phần cấu trúc đồng biến động giữa các mã này. Khi LSTM chỉ nhìn vào chuỗi giá riêng của từng mã, nó có thể bỏ qua tín hiệu lan truyền từ các cổ phiếu liên quan. GNN bổ sung kênh thông tin không gian này thông qua graph, từ đó giúp dự báo ổn định hơn ở một số mã.
+Tuy nhiên, kết quả cũng cho thấy Hybrid không tốt hơn LSTM ở tất cả mã. Với INTC, CMCSA, SBUX và QCOM, MSE của Hybrid cao hơn LSTM. Điều này rất quan trọng vì nó cho thấy đồ thị không phải lúc nào cũng mang lại tín hiệu có lợi. Nếu một cổ phiếu có động lực giá riêng biệt hoặc chịu ảnh hưởng bởi yếu tố ngành khác biệt, việc truyền thông tin từ graph có thể đưa thêm nhiễu vào mô hình. Đây là lý do cơ chế Graph-Gate có ý nghĩa: nó cho phép mô hình học cách điều tiết mức độ sử dụng thông tin GNN thay vì ép mọi node phải tiếp nhận thông tin graph như nhau.
+Biểu đồ biến động MSE trượt theo thời gian tại Hình 7 ghi nhận sự nhất quán của mô hình Hybrid Gate (đường màu xanh luôn nằm dưới hoặc trùng với đường màu đỏ của LSTM ở phần lớn các bước kiểm thử). Vùng bóng mờ màu xanh thể hiện biên độ lỗi được cải thiện rõ rệt trong các giai đoạn thị trường có xu hướng rõ ràng, cho thấy đồ thị động được cập nhật liên tục qua Apache Spark giúp mô hình thích ứng nhanh với các thay đổi cấu trúc thị trường thời gian thực. 
+
+Hình 8. Biến động sai số dự báo MSE theo từng bước kiểm thử trên kiến trúc Big Data
+4.2. Kết quả đánh giá hiệu quả tài chính thực tế
+4.2.1. Nguyên tắc đánh giá tài chính
+Các chỉ số học máy như MSE, MAE hay RMSE chỉ phản ánh khoảng cách giữa giá dự báo và giá thực tế. Tuy nhiên, trong bài toán giao dịch tài chính, điều quan trọng hơn là mô hình có tạo ra quyết định giao dịch hiệu quả hay không. Do đó, ta sẽ sử dụng thêm các chỉ số tài chính gồm Cumulative Return, Sharpe Ratio, Maximum Drawdown, Win Rate và số vị thế hoạt động trung bình.
+Với  là lợi nhuận ngày thứ  của chiến lược, lợi nhuận tích lũy Cumulative Return được tính như sau:
+
+Sharpe Ratio đo lợi nhuận điều chỉnh theo rủi ro:
+
+Trong đó 252 là số ngày giao dịch xấp xỉ trong một năm. Sharpe Ratio càng cao cho thấy chiến lược tạo ra nhiều lợi nhuận hơn trên mỗi đơn vị rủi ro.
+Maximum Drawdown đo mức sụt giảm vốn lớn nhất từ đỉnh đến đáy:
+
+Trong đó  là giá trị danh mục tại thời điểm . MDD càng âm thì chiến lược càng rủi ro. Một mô hình tốt không chỉ cần tạo lợi nhuận cao, mà còn phải kiểm soát được drawdown.
+Win Rate đo tỷ lệ ngày có lợi nhuận dương
+
+Chỉ số này phản ánh tần suất chiến lược tạo ra kết quả có lãi, nhưng không phản ánh trực tiếp độ lớn lãi/lỗ. Do đó, Win Rate cần được đọc cùng với Sharpe Ratio và Maximum Drawdown.
+4.2.2. Kết quả backtest trong môi trường Môi trường Thực nghiệm tĩnh
+Để chuyển hóa kết quả dự báo giá đóng cửa thành hiệu quả tài chính thực tế, nhóm nghiên cứu thiết lập và so sánh hai chiến lược giao dịch định lượng cốt lõi sau kết hợp với các mô hình huấn luyện:
+Chiến lược Long-only: Tại mỗi ngày giao dịch , hệ thống sẽ kích hoạt vị thế mua (Long) và phân bổ vốn đều cho các mã cổ phiếu có giá dự báo tăng (), đồng thời đứng ngoài (giữ tiền mặt) đối với các mã dự báo giảm. Chiến lược này phụ thuộc vào xu hướng đi lên chung của thị trường và chịu rủi ro sụt giảm lớn khi thị trường bước vào pha giảm giá.
+Chiến lược Long-Short: Đây là chiến lược phòng thủ chủ động, hướng tới trạng thái trung hòa Dollar. Tại mỗi ngày , hệ thống đồng thời thực hiện mua (Long) 2 cổ phiếu được dự báo có tỷ suất sinh lời tăng mạnh nhất, và bán khống (Short) 2 cổ phiếu được dự báo giảm sâu nhất. Chiến lược này không phụ thuộc vào hướng đi chung của thị trường mà kiếm lời dựa trên sự chênh lệch hiệu năng chéo giữa hai nhóm cổ phiếu, giúp tạo ra lợi nhuận thặng dư rủi ro và bảo vệ danh mục ngay cả khi toàn thị trường sụp đổ.
+Bảng 6 phản ánh kết quả backtest trên tập kiểm thử của Môi trường Thực nghiệm tĩnh, không được trộn với bảng financial metrics của kiến trúc Big Data.
+Bảng 5. Kết quả các chỉ số tài chính trong Môi trường Thực nghiệm tĩnh
+
+Hình 9. So sánh các chỉ số Sharpe Ratio, Tỷ lệ thắng Win Rate và Mức sụt giảm tối đa MDD trong môi trường thực nghiệm tĩnh với các chiến lược
+Từ kết quả Bảng 6 và Hình 8, trong môi trường Môi trường Thực nghiệm tĩnh, chiến lược Linear Long-only đạt kết quả tài chính tốt nhất, với lợi nhuận 2.59%, Sharpe 0.519 và Win Rate 56%. Ngược lại, các chiến lược dựa trên LSTM và Hybrid tạo ra lợi nhuận âm trong giai đoạn kiểm thử này.
+Kết quả này không mâu thuẫn với Bảng 2. Linear Regression trong Bảng 2 cũng là mô hình có Directional Accuracy tốt nhất. Khi chiến lược giao dịch được xây dựng dựa trên chiều dự báo, mô hình có Directional Accuracy cao hơn có xu hướng tạo ra kết quả backtest tốt hơn. Điều này củng cố nhận định rằng sai số giá thấp chưa đủ để khẳng định hiệu quả giao dịch; khả năng dự báo đúng chiều biến động mới là yếu tố quyết định trực tiếp hơn đối với chiến lược Long-only hoặc Long-short.
+
+Hình 10. Đường cong so sánh chỉ số lợi nhuận tích lũy trong Môi trường Thực nghiệm tĩnh với các chiến lược tương ứng
+
+Hình 11. Biểu đồ diễn biến mức sụt giảm vốn trong Môi trường Thực nghiệm tĩnh với các chiến lược
+4.2.3. Kết quả vận hành thực tế trên kiến trúc Big Data
+Khác với giai đoạn nghiên cứu đa mô hình ở Môi trường thực nghiệm tĩnh Tĩnh - nơi chúng ta huấn luyện và đối chiếu cả 4 cấu hình để tìm ra mô hình tối ưu, tại kiến trúc Big Data, hệ thống được thiết kế theo nguyên tắc tối ưu hóa và tiết kiệm tài nguyên tính toán của luồng Streaming. Quy trình được phân tách rõ rệt: Tầng Batch Layer (Airflow) sẽ đảm nhận huấn luyện chéo đa mô hình offline để chọn ra checkpoint tối ưu nhất; sau đó chỉ có 1 checkpoint duy nhất của mô hình được chọn là mô hình tối ưu nhất được đẩy lên Speed Layer và Serving Layer để phục vụ suy luận thời gian thực trực tuyến. Việc loại bỏ các mô hình kém hơn giúp giảm thiểu xung đột tài nguyên GPU/RAM và triệt tiêu độ trễ của luồng dữ liệu truyền phát. Do đó, Bảng 7 tập trung hiển thị chi tiết kết quả vận hành thực tế của duy nhất mô hình Hybrid LSTM-GNN Graph-Gated so sánh trực tiếp với chiến lược chuẩn Buy & Hold.
+Kết quả Bảng 7, Hình 11 và Hình 12 cho thấy trong môi trường Big Data, chiến lược dựa trên mô hình Hybrid LSTM-GNN tạo ra lợi nhuận tích lũy 42.80%, cao hơn đáng kể so với mức 28.50% của chiến lược Buy & Hold. Chênh lệch lợi nhuận là 14.20 điểm phần trăm. Đây là bằng chứng quan trọng cho thấy hệ thống không chỉ có khả năng dự báo, mà còn có thể chuyển hóa tín hiệu dự báo thành quyết định danh mục có hiệu quả.
+Sharpe Ratio của chiến lược Hybrid đạt 1.62, cao hơn mức 1.15 của Buy & Hold. Điều này cho thấy mô hình không chỉ tạo ra lợi nhuận cao hơn, mà còn tạo ra lợi nhuận tốt hơn trên mỗi đơn vị rủi ro. Trong tài chính định lượng, Sharpe Ratio cao hơn benchmark là tín hiệu tích cực vì nó cho thấy chiến lược không đơn thuần chấp nhận rủi ro lớn hơn để đổi lấy lợi nhuận cao hơn, mà có khả năng tối ưu tương quan giữa lợi nhuận và biến động.
+Maximum Drawdown của chiến lược Hybrid là -11.80%, thấp hơn về độ sâu so với -18.50% của Buy & Hold. Đây là một kết quả quan trọng vì drawdown phản ánh mức tổn thất tạm thời lớn nhất mà nhà đầu tư phải chịu. Việc giảm Maximum Drowndown từ -18.50% xuống -11.80% cho thấy chiến lược mô hình có khả năng giảm thiểu rủi ro trong các pha thị trường bất lợi. Nói cách khác, mô hình không chỉ tìm kiếm cơ hội sinh lời, mà còn có cơ chế tránh vị thế khi tín hiệu dự báo không thuận lợi.
+Win Rate đạt 54.50%, kết hợp với Directional Accuracy tài chính 58.20%, cho thấy chiến lược có tỷ lệ ngày thắng lớn hơn 50%. Số vị thế hoạt động trung bình là 3.6/10 mã, cho thấy hệ thống không mua toàn bộ danh mục ở mọi thời điểm, mà có xu hướng chọn lọc một nhóm cổ phiếu có tín hiệu tốt hơn. Đây là đặc điểm phù hợp với chiến lược định lượng trong bối cảnh dự báo đa tài sản: mô hình không nhất thiết phải giao dịch tất cả mã, mà ưu tiên phân bổ vào các mã có xác suất sinh lời cao hơn.
+4.2.4. Đánh giá tác động của Graph-Gate đến tối ưu hóa danh mục
+Cơ chế Graph-Gate có vai trò điều tiết mức độ đóng góp của thông tin đồ thị vào dự báo cuối cùng. Về bản chất, LSTM học quan hệ thời gian của từng mã cổ phiếu, trong khi GNN học quan hệ không gian giữa các mã thông qua graph. Nếu ghép hai nguồn thông tin này một cách cứng nhắc, mô hình có thể bị nhiễu khi graph chứa các liên kết không còn phù hợp trong giai đoạn thị trường hiện tại. Graph-Gate giải quyết vấn đề này bằng cách học hệ số điều tiết giữa hai nguồn tín hiệu.
+Biểu diễn tổng quát của LSTM có thể viết như sau:
+
+Trong đó  là vector trạng thái ẩn biểu diễn thông tin động của chuỗi giá trong cửa sổ thời gian gần nhất.
+Với GCN, quá trình lan truyền thông tin trên đồ thị được mô tả bởi:
+
+Trong đó  là ma trận kề đã chuẩn hóa,  là biểu diễn node ở tầng thứ ,  là ma trận trọng số học được và  là hàm kích hoạt phi tuyến.
+Cơ chế Graph-Gate có thể được mô tả như sau:
+
+Trong đó  là hệ số cổng,  là biểu diễn từ GNN và ký hiệu | biểu thị phép nối vector. Khi  lớn, mô hình cho phép thông tin graph ảnh hưởng nhiều hơn đến dự báo. Khi nhỏ, mô hình giảm ảnh hưởng của GNN và ưu tiên tín hiệu chuỗi thời gian từ LSTM.
+Biểu diễn hợp nhất có thể viết dưới dạng:
+
+Sau đó, giá trị dự báo phần dư hoặc giá trị dự báo cuối cùng được sinh bởi MLP:
+
+Kết quả trên kiến trúc Big Data cho thấy graph không cải thiện đồng đều ở mọi cổ phiếu. Hybrid tốt hơn LSTM ở 6/10 mã nhưng kém hơn ở 4/10 mã. Do đó, vai trò của Graph-Gate không phải là ép mô hình luôn dùng thông tin graph, mà là giúp mô hình học cách sử dụng graph có chọn lọc. Điều này giải thích vì sao mức cải thiện MSE toàn hệ thống của Hybrid so với LSTM là nhỏ nhưng DA và hiệu quả tài chính lại tốt hơn. Trong giao dịch, chỉ cần mô hình cải thiện đúng ở các thời điểm và các mã có tác động lớn đến danh mục, kết quả tài chính có thể được cải thiện rõ rệt.
+Hình 13 mô tả diễn biến thích ứng của hệ số cổng trung bình (Gate_Mean) cùng dải biên độ dao động. Ta thấy trong các giai đoạn đầu, hệ số cổng duy trì ở mức trung bình (~0.33), cho thấy GCN đóng góp đều đặn vào việc hiệu chỉnh giá trị. Tuy nhiên, ở các giai đoạn thị trường có biến động mạnh (từ ngày 9 trở đi), Gate_Mean tự động co hẹp về vùng 0.18-0.20, tức là mô hình chủ động giảm bớt sự phụ thuộc vào thông tin đồ thị (vốn có thể bị nhiễu do biến động chéo) và ưu tiên tín hiệu chuỗi thời gian an toàn từ LSTM nội tại. Đây là minh chứng thực tế rõ ràng nhất cho thấy sự hiệu quả của cơ chế Graph-Gate trong việc chống concept drift và bảo vệ mô hình.
+
+Hình 14. Diễn biến hệ số cổng Gate_Mean theo thời gian trên Big Data
+Hình 14 thể hiện số lượng cạnh Pearson, Association và Combined được tính toán lại liên tục theo thời gian trượt. Số lượng cạnh combined biến thiên linh hoạt từ 20 đến 24 cạnh, phản ánh sự thay đổi liên tục của mối quan hệ tương quan ngành và luật kết hợp Apriori giữa 10 mã cổ phiếu. Đồ thị động này giúp GCN liên tục cập nhật luồng thông tin không gian phù hợp nhất với cấu trúc vi mô của thị trường tại mỗi phiên giao dịch trực tuyến.
+
+Hình 15. Số lượng cạnh Pearson, Association và Combined theo thời gian trong kiến trúc Big Data
+4.3. Giải thích sự chênh lệch kết quả giữa Môi trường Thực nghiệm tĩnh và kiến trúc Big Data
+4.3.1. Khác biệt về mục tiêu đánh giá: sai số giá và hiệu quả giao dịch
+Một trong những nguyên nhân dẫn đến sự khác biệt giữa kết quả Môi trường Thực nghiệm tĩnh và kết quả trong kiến trúc Big Data là hai môi trường nhấn mạnh các mục tiêu đánh giá khác nhau. Môi trường Thực nghiệm tĩnh chủ yếu đánh giá sai số dự báo giá đóng cửa, trong khi hệ thống Big Data nhấn mạnh khả năng biến dự báo thành tín hiệu giao dịch và hiệu quả danh mục.
+Trong Môi trường Thực nghiệm tĩnh, Linear Regression đạt kết quả tốt nhất về MSE và Directional Accuracy trên tập kiểm thử offline. Điều này làm cho Linear Long-only cũng có kết quả tài chính tốt hơn các chiến lược deep learning trong bảng Môi trường Thực nghiệm tĩnh. Tuy nhiên, ở kiến trúc Big Data, Hybrid LSTM-GNN lại đạt MSE thấp nhất và Directional Accuracy cao nhất trong nhóm ba mô hình. Đồng thời, chiến lược Hybrid tạo ra lợi nhuận tích lũy cao hơn Buy & Hold và kiểm soát drawdown tốt hơn.
+Sự khác biệt này cho thấy không nên kết luận mô hình chỉ dựa trên một bảng kết quả duy nhất. Với bài toán dự báo cổ phiếu, cần phân biệt rõ hai tầng đánh giá:
+Tầng thứ nhất là tầng dự báo, nơi mô hình được đánh giá bằng MSE, RMSE, MAE, MAPE và Directional Accuracy.
+Tầng thứ hai là tầng quyết định tài chính, nơi tín hiệu mô hình được chuyển thành vị thế giao dịch và được đánh giá bằng Cumulative Return, Sharpe Ratio, Maximum Drawdown và Win Rate.
+Một mô hình có sai số giá thấp nhưng tín hiệu hướng yếu có thể không tạo ra chiến lược tốt. Ngược lại, một mô hình chỉ cải thiện nhẹ MSE nhưng cải thiện DA và khả năng chọn lọc vị thế có thể tạo ra hiệu quả tài chính tốt hơn.
+4.3.2. Khác biệt do cơ chế chuẩn hóa Static và Rolling 
+Trong môi trường Môi trường Thực nghiệm tĩnh, scaler thường được fit trên tập huấn luyện cố định và sau đó áp dụng cho tập kiểm thử. Công thức chuẩn hóa MinMax tĩnh có dạng:
+
+Cách làm này phù hợp trong môi trường thực nghiệm tĩnh vì nó đảm bảo không sử dụng thông tin tương lai nếu scaler chỉ fit trên tập train. Tuy nhiên, trong môi trường vận hành thực tế, phân phối giá cổ phiếu có thể trôi theo thời gian. Khi giá cổ phiếu ở giai đoạn mới vượt ra ngoài biên độ từng quan sát trong tập train, giá trị scaled có thể vượt khỏi khoảng [0,1]. Điều này làm các lớp phi tuyến như sigmoid hoặc tanh dễ rơi vào vùng bão hòa, khiến mô hình phản ứng kém nhạy với biến động mới.
+Trong kiến trúc Big Data, nếu sử dụng Rolling MinMaxScaler trên cửa sổ gần nhất , dữ liệu tại thời điểm  được chuẩn hóa theo biên độ cục bộ:
+
+Khi khôi phục giá trị dự báo về thang giá thật, hệ thống dùng:
+
+Cơ chế này làm cho mô hình thích ứng tốt hơn với phân phối giá gần hiện tại. Tuy nhiên, nó cũng khiến sai số tuyệt đối có thể khác với Môi trường Thực nghiệm tĩnh vì  và  không còn cố định. Nói cách khác, Môi trường Thực nghiệm tĩnh và kiến trúc Big Data có thể cùng dự báo một giá trị scaled gần nhau nhưng khi inverse transform bằng hai scaler khác nhau, sai số USD hoặc sai số tương đối có thể khác nhau.
+Đây là nguyên nhân quan trọng nhằm giải thích vì sao chỉ số học máy giữa hai môi trường không nên bị so sánh trực tiếp theo kiểu một-một. Môi trường Thực nghiệm tĩnh phù hợp để kiểm tra mô hình trong điều kiện chuẩn hóa tĩnh, còn kiến trúc Big Data phản ánh điều kiện vận hành khi dữ liệu liên tục dịch chuyển.
+4.3.2. Khác biệt do đồ thị tĩnh và đồ thị động
+Trong mô hình LSTM thuần, mỗi mã cổ phiếu được học chủ yếu từ chuỗi thời gian của chính nó. Với Hybrid LSTM-GNN, các mã cổ phiếu được xem như các node trong đồ thị, còn quan hệ giữa chúng được biểu diễn thông qua ma trận kề . Nếu  lớn, thông tin từ cổ phiếu  có ảnh hưởng nhiều hơn đến biểu diễn của cổ phiếu .
+Trong Môi trường Thực nghiệm tĩnh, graph thường được xây dựng trong cùng quy trình thực nghiệm và được kiểm tra bằng các đoạn code EDA/diagnostic. Kết quả Môi trường Thực nghiệm tĩnh cho thấy graph đã có cạnh, do đó mô hình GNN không còn rơi vào trường hợp đồ thị rỗng. Đây là điều kiện cần để GNN có ý nghĩa. Nếu đồ thị không có cạnh, GNN chỉ còn giống một phép biến đổi node riêng lẻ và không thực sự truyền thông tin giữa các cổ phiếu.
+Trong kiến trúc Big Data, graph có thể được cập nhật theo cửa sổ dữ liệu mới. Khi tương quan giữa các cổ phiếu thay đổi, số cạnh Pearson, số cạnh Association và số cạnh Combined cũng thay đổi theo. Điều này giúp graph phản ánh trạng thái thị trường gần hiện tại hơn. Tuy nhiên, đồ thị động cũng có thể đưa thêm nhiễu nếu quan hệ tương quan ngắn hạn không bền vững. Vì vậy, Graph-Gate đóng vai trò quan trọng trong việc giảm tác động của graph khi tín hiệu không ổn định.	
+Từ kết quả ticker-level, Hybrid không cải thiện ở tất cả mã. Điều này cho thấy graph có tác dụng chọn lọc: nó hữu ích với nhóm cổ phiếu có quan hệ đồng biến động rõ hơn, nhưng có thể làm nhiễu các mã có động lực giá riêng biệt. Cơ chế gate là thành phần cần thiết để kiểm soát rủi ro này.
+4.3.4. Khác biệt do cơ chế gộp batch và node trong huấn luyện mô hình
+Trong mô hình Hybrid LSTM-GNN, dữ liệu đầu vào thường có dạng tensor bốn chiều:
+
+Trong đó  là batch size,  là số node/cổ phiếu,  là độ dài cửa sổ thời gian và  là số đặc trưng tại mỗi bước thời gian. Để đưa vào LSTM, mô hình có thể reshape tensor theo hướng gộp batch và node:
+
+LSTM khi đó học một bộ tham số chia sẻ cho tất cả cổ phiếu:
+
+Sau đó kết quả được reshape về dạng: 
+Hệ số cổng Graph-Gate toàn cục  tại mỗi bước lặp được tổng hợp từ trung bình các hệ số cổng cục bộ  tối ưu hóa trên từng worker thứ  trong tổng số  worker/batch:
+
+Sự thay đổi này có thể làm quỹ đạo hội tụ của mô hình khác với Môi trường Thực nghiệm tĩnh. Vì hàm mất mát của mô hình học sâu không lồi, hai quá trình huấn luyện với cùng kiến trúc nhưng khác batch size, thứ tự dữ liệu hoặc seed vẫn có thể hội tụ đến các điểm tối ưu khác nhau. Điều này giải thích vì sao kết quả giữa Môi trường Thực nghiệm tĩnh và Big Data có thể khác nhau ngay cả khi mô hình về mặt kiến trúc là tương tự.
+4.3.5. Khác biệt do xử lý streaming và độ trễ hệ thống
+Môi trường Thực nghiệm tĩnh xử lý dữ liệu lịch sử theo kiểu tĩnh. Mọi bản ghi đã có sẵn, được sắp xếp và đồng bộ trước khi mô hình chạy. Trong khi đó, kiến trúc Big Data phải tiếp nhận dữ liệu qua Kafka, xử lý bằng Spark Structured Streaming, ghi dữ liệu vào storage và phục vụ kết quả ở tầng inference.
+Trong môi trường streaming, đặc trưng như moving average, volatility hoặc return có thể được tính theo micro-batch. Nếu dữ liệu đến trễ, bị lệch timestamp hoặc cần xử lý theo watermark, đặc trưng tại một thời điểm có thể hơi khác so với đặc trưng tính offline trên DataFrame tĩnh. Sự khác biệt này thường không lớn nhưng có thể làm thay đổi đầu vào của mô hình, đặc biệt với các chỉ số nhạy như return ngắn hạn hoặc volatility.
+Ngoài ra, nếu hệ thống dùng tín hiệu dự báo để mô phỏng giao dịch, còn có thêm một lớp sai lệch tài chính: giá khớp lệnh giả định, thời điểm ra tín hiệu, độ trễ xử lý và cách chọn vị thế. Trong Môi trường Thực nghiệm tĩnh, backtest thường giả định dữ liệu hoàn hảo và khớp lệnh lý tưởng. Trong kiến trúc Big Data, mô phỏng thực tế hơn sẽ phải tính đến việc tín hiệu được sinh ra sau quá trình xử lý luồng. Do đó, các chỉ số tài chính giữa hai môi trường cũng không nên được xem là tương đương tuyệt đối.
+4.3.6. Hiệu năng tài chính có thể cải thiện mạnh hơn hiệu năng học máy
+Một điểm quan trọng trong kết quả Big Data là mức cải thiện MSE của Hybrid so với LSTM không quá lớn, nhưng hiệu quả tài chính lại nổi bật hơn. Điều này có thể được giải thích bởi sự khác biệt giữa dự báo giá và quyết định giao dịch.
+MSE trung bình tính trên toàn bộ mã và toàn bộ ngày:
+
+
+Lợi nhuận ngày của chiến lược có thể được tính gần đúng như sau:
+
+Trong đó  là tập cổ phiếu được chọn để giao dịch tại ngày . 
+Như vậy, chỉ cần mô hình cải thiện khả năng chọn đúng tập , chiến lược có thể đạt lợi nhuận tốt hơn ngay cả khi MSE trung bình chỉ giảm nhẹ. Điều này phù hợp với kết quả kiến trúc Big Data: Hybrid chỉ cải thiện MSE nhẹ so với LSTM nhưng Directional Accuracy cao hơn và backtest cho thấy lợi nhuận tích lũy, Sharpe Ratio và Maximum Drawdown đều tốt hơn Buy & Hold. Do đó, đóng góp chính của Hybrid LSTM-GNN trong hệ thống không chỉ nằm ở giảm sai số dự báo giá, mà nằm ở việc cải thiện chất lượng tín hiệu giao dịch.
+4.4. Kết luận chung 
+Kết quả đánh giá cho thấy hiệu năng của mô hình phụ thuộc mạnh vào môi trường triển khai và mục tiêu đánh giá. Trong Môi trường Thực nghiệm tĩnh, Linear Regression có kết quả tốt nhất trên tập kiểm thử offline cả về MSE và Directional Accuracy. Điều này cho thấy trong một số giai đoạn dữ liệu, mô hình tuyến tính vẫn là baseline mạnh và không nên bị xem nhẹ.
+Tuy nhiên, trong kiến trúc Big Data, Hybrid LSTM-GNN Graph-Gated đạt kết quả tốt nhất trong nhóm ba mô hình được triển khai, với MSE thấp nhất, MAE thấp nhất, RMSE thấp nhất và Directional Accuracy cao nhất. Phân tích theo từng ticker cho thấy Hybrid tốt hơn LSTM ở 6/10 mã, đặc biệt ở các mã như COST, AAPL, MSFT, INTU, AMD và ADBE. Điều này chứng minh rằng thông tin graph có đóng góp thực tế, nhưng đóng góp này mang tính chọn lọc, không đồng đều trên toàn bộ cổ phiếu.
+Về hiệu quả tài chính, kết quả Big Data cho thấy chiến lược dựa trên Hybrid LSTM-GNN tạo ra lợi nhuận tích lũy 42.80%, cao hơn Buy & Hold ở mức 28.50%. Sharpe Ratio của chiến lược đạt 1.62 so với 1.15 của Buy & Hold, đồng thời Maximum Drawdown được kiểm soát ở mức -11.80% so với -18.50%. Đây là bằng chứng cho thấy giá trị của mô hình không chỉ nằm ở khả năng giảm sai số dự báo, mà còn nằm ở khả năng hỗ trợ quyết định danh mục và kiểm soát rủi ro.
+Sự chênh lệch giữa Môi trường Thực nghiệm tĩnh và Big Data là hợp lý khi xét đến các khác biệt về chuẩn hóa dữ liệu, xử lý streaming, graph động, batch hiệu dụng, inverse transform và mục tiêu đánh giá. Do đó, thay vì xem hai môi trường như hai kết quả mâu thuẫn, cần xem chúng là hai lớp đánh giá bổ sung: Môi trường Thực nghiệm tĩnh giúp kiểm tra mô hình trong điều kiện nghiên cứu có kiểm soát, còn kiến trúc Big Data kiểm tra khả năng vận hành và hiệu quả tài chính thực tế của hệ thống.
+
+Chương 5. KẾT LUẬN
+4.1. Ưu điểm
+Đề tài đã xây dựng thành công một hệ thống xử lý luồng toàn diện theo mô hình kiến trúc Lambda cải tiến. Sự kết hợp giữa Apache Kafka và Apache Spark Structured Streaming giúp hệ thống có khả năng xử lý tiền xử lý trượt (sliding window) theo thời gian thực với độ trễ thấp kết hợp với việc trực quan hóa bằng cách thiết kế một hệ thống real-time sử dụng framework FastAPI (Xem tại Phụ lục). Giải pháp đóng gói môi trường bằng Docker container tách biệt giữa tầng tính toán phân tán và tầng suy luận học sâu của PyTorch giúp hệ thống vận hành ổn định, triệt tiêu rủi ro xung đột tài nguyên.
+Đề tài cũng đã cải tiến thành công mô hình lai Không gian - Thời gian bằng việc tích hợp cơ chế Graph-Gate. Thực nghiệm trực quan hóa hệ số cổng (Gate_Mean) chứng minh mô hình có khả năng tự thích ứng linh hoạt: chủ động dùng thông tin không gian từ đồ thị trong điều kiện thị trường ổn định, và tự động ngắt/giảm liên kết đồ thị (co hẹp hệ số về vùng 0.18–0.20) để ưu tiên chuỗi thời gian nội tại của LSTM khi thị trường xảy ra biến động mạnh (Concept Drift). Việc mở rộng không gian đặc trưng nút lên 7 chiều giúp mô hình bắt được vi cấu trúc thị trường sâu sắc hơn nghiên cứu gốc.
+Hệ thống không chỉ dừng lại ở các chỉ số sai số toán học thuần túy (MSE, RMSE) mà đã chứng minh được giá trị thực tế qua tầng quyết định đầu tư. Trong môi trường vận hành thực tế, mô hình Hybrid LSTM-GNN Graph-Gated đạt kết quả vượt trội so với benchmark thị trường (Lợi nhuận tích lũy đạt 42.80% so với 28.50% của Buy & Hold; Sharpe Ratio đạt 1.62 so với 1.15; kiểm soát rủi ro vốn hiệu quả với Maximum Drawdown giảm sâu từ -18.50% xuống còn -11.80%).
+4.2. Nhược điểm
+Do đề tài hiện tại mới chỉ thực nghiệm trên ma trận kề kích thước  tương ứng với 10 mã cổ phiếu blue-chip đại diện thuộc sàn NASDAQ, cấu trúc đồ thị quy mô nhỏ này chưa phản ánh hoàn toàn tính chất phức tạp, mật độ phân hóa cao và hiệu ứng lan truyền rủi ro mang tính hệ thống của toàn bộ thị trường với hàng ngàn mã cổ phiếu.
+Do giới hạn quyền truy cập vào các cổng API dữ liệu real-time thương mại, hệ thống vẫn phải dựa vào kỹ thuật Historical Data Replay để giả lập luồng dữ liệu streaming. Điều này có thể dẫn đến một số sai lệch biên so với thực tế phiên giao dịch trực tuyến do chưa giả lập được toàn bộ các hiện tượng nghẽn lệnh mạng vi mô hoặc trượt giá khớp lệnh thực tế của sàn giao dịch.
+Sai số hệ thống và hiệu năng tài chính có sự phân hóa khá nhạy tùy thuộc vào kích thước cửa sổ của cơ chế Rolling MinMaxScaler. Việc chọn siêu tham số cửa sổ trượt (W = 60 ngày) hiện tại vẫn dựa trên kinh nghiệm thực nghiệm cục bộ, chưa có cơ chế tự động tối ưu hóa tham số chuẩn hóa theo sự thay đổi chu kỳ vĩ mô của thị trường.
+4.2. Hướng phát triển
+Mở rộng quy mô đồ thị và ứng dụng Heterogeneous GNN bằng cách nâng cấp hệ thống để xử lý toàn bộ danh mục chỉ số (như S&P 500 hoặc NASDAQ-100). Chuyển đổi từ đồ thị đồng nhất (Homogeneous Graph) hiện tại sang mạng lưới đồ thị hỗn hợp đa phân hệ (Heterogeneous Graph), cho phép tích hợp thêm các nút thực thể phi tài chính như: các chỉ số vĩ mô (lãi suất FED, lạm phát), dữ liệu chuỗi cung ứng doanh nghiệp, và luồng thông tin văn bản tin tức (News Sentiment) được trích xuất qua các mô hình ngôn ngữ lớn (LLM).
+Triển khai cấu trúc Feature Store chuyên dụng (như Feast) song song với hệ quản trị cơ sở dữ liệu PostgreSQL nhằm quản lý, đồng bộ và lưu trữ tập trung các đặc trưng động. Đồng thời, ứng dụng các thư viện tính toán đồ thị phân tán quy mô lớn trực tiếp trên luồng streaming như DGL (Deep Graph Library) hoặc PyG (PyTorch Geometric) Distributed để tối ưu hóa thời gian huấn luyện lại (Retrain) ở tầng Batch Layer.
+Thay vì áp dụng chiến lược phân bổ vốn đều đơn giản (Long-only hoặc Long-Short cố định), hướng phát triển kế tiếp sẽ sử dụng kết quả dự báo của mô hình Hybrid làm tham số đầu vào cho các thuật toán tối ưu hóa danh mục hiện đại như Modern Portfolio Theory (Markowitz) hoặc Black-Litterman Model kết hợp học tăng cường (Reinforcement Learning). Hệ thống sẽ tự động tính toán tỷ trọng vốn tối ưu cho từng mã theo thời gian thực, giúp tối đa hóa tỷ suất Sharpe và chủ động quản trị rủi ro danh mục tự động.
+
+TÀI LIỆU THAM KHẢO
+
+PHỤ LỤC
+
+Hình 16. Giao diện Bảng Thống kê của kiến trúc Big Data
+Hình 16 thể hiện giao diện trực quan hóa bảng tổng hợp dự báo giá cổ phiếu. Bố cục chia thành hai vùng chính:
+Bên trái (Bảng số liệu tổng quan): Hiển thị danh sách 10 mã cổ phiếu công nghệ lớn (AAPL, ADBE, AMD, COST, INTC, etc.). Cột dữ liệu bao gồm: Mã cổ phiếu (liên kết nhanh), Giá đóng cửa thực tế phiên trước (USD), Giá đóng cửa dự đoán phiên tiếp theo (USD), Biến động chênh lệch giá (Delta) và Tỷ suất dự đoán (%) đi kèm với các biểu tượng mũi tên màu sắc trực quan (màu xanh lá ▲ biểu thị xu hướng tăng giá, màu đỏ ▼ biểu thị xu hướng giảm giá). Phía trên bảng trang bị thanh tìm kiếm hỗ trợ lọc nhanh mã cổ phiếu theo ký tự.
+Bên phải (Hộp thống kê phiên làm việc): Thẻ thông tin phiên làm việc hiện tại (Inference Session Summary) hiển thị các siêu dữ liệu cấu hình như: Mô hình dự đoán chủ đạo (Hybrid LSTM-GNN), Mã định danh phiên (Run ID), Tổng số lượng cổ phiếu theo dõi, Tỷ suất sinh lời trung bình danh mục, Cổ phiếu dự đoán tăng/giảm mạnh nhất và Thời gian cập nhật dữ liệu cuối cùng.
+
+Hình 17. Giao diện Biểu đồ thời gian thực sử dụng biểu đồ đường trong kiến trúc Big Data
+Hình 17 là Giao diện theo dõi biến động giá trực tuyến dưới dạng biểu đồ đường (Line Chart), tích hợp thư viện đồ thị kỹ thuật chuyên nghiệp TradingView Lightweight Charts:
+Vùng biểu đồ (Trái): Khung lưới đồ thị màu trắng hiển thị biến động tỷ suất phần trăm tích lũy của các cổ phiếu theo thời gian thực (X-axis là trục thời gian trực tuyến, Y-axis biểu diễn biên độ phần trăm biến động). Hệ thống tự động phân tách đường giá của từng mã cổ phiếu bằng các dải màu sắc riêng biệt (10 mã màu tương phản cao) để người dùng dễ dàng theo dõi chéo. Phía trên hiển thị các thẻ trạng thái hệ thống: nhãn vàng "Chế độ Mô phỏng" (Historical Data Replay) và nhãn xanh lá "Đang kết nối" (kết nối trực tiếp với luồng dữ liệu thời gian thực).
+Hộp điều khiển (Phải): Danh sách hộp kiểm (Checkbox) chứa 10 mã cổ phiếu, cho phép người dùng tùy chọn bật/tắt hiển thị đường giá của từng mã trên biểu đồ một cách linh hoạt theo nhu cầu phân tích. Chu kỳ cập nhật dữ liệu liên tục mỗi 3 giây.
+
+Hình 18. Giao diện Biểu đồ thời gian thực sử dụng biểu đồ Nến Nhật trong kiến trúc Big Data
+Hình 18 là giao diện hiển thị biểu đồ kỹ thuật chuyên sâu dạng Nến Nhật (Candlestick Chart) kết hợp biểu đồ cột khối lượng giao dịch trực tiếp:
+Vùng biểu đồ nến (Trực quan chính): Thể hiện chi tiết cấu trúc giá dao động trong phiên (Mở cửa, Cao nhất, Thấp nhất, Đóng cửa) của một mã cổ phiếu được chọn cụ thể từ thanh điều hướng bên phải. Nến tăng giá (Bullish) được tô màu xanh lá đậm, nến giảm giá (Bearish) tô màu đỏ tươi.
+Biểu đồ khối lượng (Volume Histogram): Nằm ở 20% biên dưới của trục đồ thị, biểu diễn khối lượng giao dịch tương ứng khớp lệnh theo thời gian thực. Màu sắc của cột khối lượng đồng bộ với màu sắc của nến tương ứng ở dạng bán trong suốt để tạo độ thoáng đãng và dễ nhìn cho giao diện phân tích kỹ thuật.
+
+Hình 19. Giao diện trang Phân tích chi tiết các cổ phiếu của kiến trúc Big Data 
+Hình 19 là giao diện lưới khuyến nghị giao dịch cho 10 mã cổ phiếu được thiết kế theo dạng lưới thẻ (Grid Cards) phân bổ đều, tự động co giãn tương thích đa thiết bị. Mỗi thẻ đại diện cho một cổ phiếu bao gồm logo viết tắt của doanh nghiệp, tên đầy đủ và trạng thái tín hiệu đầu tư.
+Hộp tín hiệu khuyến nghị (Pill Badge): Đặt ở góc phải mỗi thẻ với màu sắc phân loại tín hiệu tự động từ mô hình suy luận:
+Nhãn xanh lá KHUYẾN NGHỊ: MUA đi kèm mức độ tin cậy của mô hình (Cao/Trung bình) khi tỷ suất dự đoán tăng trưởng dương vượt ngưỡng biên an toàn.
+Nhãn đỏ KHUYẾN NGHỊ: BÁN / TRÁNH đi kèm độ tin cậy Cao khi dự đoán giá giảm sâu dưới ngưỡng.
+Nhãn xanh dương KHUYẾN NGHỊ: GIỮ khi giá biến động đi ngang trong biên độ hẹp. Khi người dùng click vào thẻ bất kỳ, hệ thống sẽ kích hoạt bảng ngăn kéo phân tích AI chi tiết trượt ra từ cạnh phải màn hình.
+
+Hình 20. Một cổ phiếu khi được chọn sẽ hiển thị các thông tin cần thiết và cả các phân tích chi tiết "Lý do khuyến nghị" và "Cảnh báo rủi ro" tích hợp mô hình LLM
+Hình 20 là chi tiết bảng thông tin phân tích chuyên sâu tích hợp Trí tuệ nhân trượt ra từ bên phải giao diện:
+Thanh tiêu đề: Hiển thị tên mã cổ phiếu lựa chọn nổi bật, nút đóng drawer nhanh và nhãn hiển thị khuyến nghị hành động kèm mức độ tin cậy định lượng.
+Hộp số liệu nhanh: Khung xám nhỏ gọn thống kê nhanh các thông số giá trực tuyến, giá dự kiến phiên sau, chênh lệch giá tuyệt đối và tỷ suất phần trăm biến động kỳ vọng.
+Thẻ Lý do khuyến nghị (xanh dương chủ đạo): Nội dung phân tích định lượng tự động từ mô hình ngôn ngữ lớn Gemini 1.5 Flash kết hợp thông số kiến trúc mô hình học máy (tương quan cổng đồ thị Graph-Gate giữa các mã cùng ngành, chỉ số Sharpe thực nghiệm, các ngưỡng hỗ trợ kỹ thuật).
+Thẻ Cảnh báo rủi ro (đỏ hồng chủ đạo): Liệt kê các yếu tố rủi ro tiềm ẩn như mức độ sụt giảm tài sản tối đa lịch sử (Max Drawdown) của cổ phiếu, tính bất ổn của thị trường vĩ mô tại thời điểm suy luận, cảnh báo về độ lệch mô hình toán học và các giới hạn về mặt dữ liệu lịch sử đầu vào. Phía dưới cùng bố trí danh sách các điểm tóm tắt dạng danh mục (Bullets) giúp nhà đầu tư nắm bắt nhanh lõi phân tích trong 5 giây.

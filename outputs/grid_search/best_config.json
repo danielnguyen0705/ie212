@@ -1,0 +1,11 @@
+{
+  "window_size": 90,
+  "pearson_threshold": 0.45,
+  "gate_type": "sigmoid",
+  "MSE": 36.73658750506477,
+  "MAE": 3.127119115193685,
+  "RMSE": 6.0610714815999955,
+  "Directional_Accuracy": 0.5,
+  "Sharpe_Ratio": 10.782908435257058,
+  "Max_Drawdown": 0.0
+}
