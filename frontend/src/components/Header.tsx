@@ -69,7 +69,7 @@ export default function Header({
             : "bg-gray-200 text-gray-700 hover:bg-gray-300"
         }`}
       >
-        {healthy ? "API Healthy" : "Check API"}
+        {healthy ? "Hệ thống Ổn định" : "Kiểm tra API"}
       </button>
 
       {/* REFRESH */}
@@ -77,7 +77,7 @@ export default function Header({
         onClick={onRefresh}
         className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
       >
-        Refresh
+        Làm mới
       </button>
 
       {/* COPY RUN ID */}
@@ -89,7 +89,7 @@ export default function Header({
             : "bg-gray-200 hover:bg-gray-300"
         }`}
       >
-        {copied ? "Copied" : "Copy Run ID"}
+        {copied ? "Đã sao chép" : "Sao chép Run ID"}
       </button>
 
       {/* OPEN API DOCS */}
@@ -99,7 +99,7 @@ export default function Header({
         }
         className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
       >
-        Open API Docs
+        Tài liệu API
       </button>
 
     </div>

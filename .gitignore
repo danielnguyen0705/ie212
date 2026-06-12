@@ -14,6 +14,7 @@ __pycache__/
 
 # Editor / OS files
 .vscode/
+charts/
 .DS_Store
 Thumbs.db
 

@@ -82,6 +82,8 @@ class DemoStreamEngine:
         self._histories: dict[str, list[dict]] = {}
         self._predictions: dict[str, dict] = {}
         self._loaded = False
+        self._thread = None
+        self._stop_event = threading.Event()
 
     def _ensure_loaded(self):
         if self._loaded:
@@ -102,6 +104,23 @@ class DemoStreamEngine:
                 self._histories[ticker] = []
             self._loaded = True
 
+            # Tạo điểm dữ liệu ban đầu
+            for t in self._ticker_data.keys():
+                self._generate_point_locked(t)
+
+            # Khởi động luồng chạy ngầm sinh dữ liệu mỗi 3 giây
+            if self._thread is None:
+                self._stop_event.clear()
+                self._thread = threading.Thread(target=self._run_loop, daemon=True)
+                self._thread.start()
+
+    def _run_loop(self):
+        while not self._stop_event.is_set():
+            time.sleep(3.0)
+            with self._lock:
+                for t in self._ticker_data.keys():
+                    self._generate_point_locked(t)
+
     def reload(self):
         with self._lock:
             self._loaded = False
@@ -115,52 +134,50 @@ class DemoStreamEngine:
         with self._lock:
             return sorted(self._ticker_data.keys())
 
-    def generate_point(self, ticker: str) -> Optional[dict]:
-        self._ensure_loaded()
-        with self._lock:
-            td = self._ticker_data.get(ticker)
-            if td is None:
-                return None
+    def _generate_point_locked(self, ticker: str) -> Optional[dict]:
+        td = self._ticker_data.get(ticker)
+        if td is None:
+            return None
 
-            prev_price = td["current_price"]
-            last_close = td["last_close"]
-            pred_return = td["pred_return"]
+        prev_price = td["current_price"]
+        last_close = td["last_close"]
+        pred_return = td["pred_return"]
 
-            noise = random.uniform(-0.0008, 0.0008)
-            bias = pred_return * 0.05 if pred_return else 0.0
-            new_price = prev_price * (1.0 + noise + bias)
+        noise = random.uniform(-0.0008, 0.0008)
+        bias = pred_return * 0.05 if pred_return else 0.0
+        new_price = prev_price * (1.0 + noise + bias)
 
-            upper = last_close * (1.0 + DRIFT_GUARD_PCT)
-            lower = last_close * (1.0 - DRIFT_GUARD_PCT)
-            if new_price > upper:
-                new_price = upper - abs(noise) * last_close
-            elif new_price < lower:
-                new_price = lower + abs(noise) * last_close
+        upper = last_close * (1.0 + DRIFT_GUARD_PCT)
+        lower = last_close * (1.0 - DRIFT_GUARD_PCT)
+        if new_price > upper:
+            new_price = upper - abs(noise) * last_close
+        elif new_price < lower:
+            new_price = lower + abs(noise) * last_close
 
-            td["current_price"] = new_price
+        td["current_price"] = new_price
 
-            delta = new_price - last_close
-            signal = _compute_signal(pred_return, td["graph_gate"])
+        delta = new_price - last_close
+        signal = _compute_signal(pred_return, td["graph_gate"])
 
-            point = {
-                "ticker": ticker,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "runtime_price": round(new_price, 4),
-                "last_close": last_close,
-                "pred_close": td["pred_close"],
-                "pred_return": pred_return,
-                "delta": round(delta, 6),
-                "signal": signal,
-                "graph_gate": td["graph_gate"],
-                "source": "DEMO_RUNTIME_MODE",
-            }
+        point = {
+            "ticker": ticker,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "runtime_price": round(new_price, 4),
+            "last_close": last_close,
+            "pred_close": td["pred_close"],
+            "pred_return": pred_return,
+            "delta": round(delta, 6),
+            "signal": signal,
+            "graph_gate": td["graph_gate"],
+            "source": "DEMO_RUNTIME_MODE",
+        }
 
-            hist = self._histories.setdefault(ticker, [])
-            hist.append(point)
-            if len(hist) > MAX_HISTORY:
-                hist[:] = hist[-MAX_HISTORY:]
+        hist = self._histories.setdefault(ticker, [])
+        hist.append(point)
+        if len(hist) > MAX_HISTORY:
+            hist[:] = hist[-MAX_HISTORY:]
 
-            return point
+        return point
 
     def get_history(self, ticker: str, limit: int = 100) -> list[dict]:
         self._ensure_loaded()
@@ -169,19 +186,20 @@ class DemoStreamEngine:
             return hist[-limit:]
 
     def get_latest(self, ticker: str) -> Optional[dict]:
-        point = self.generate_point(ticker)
-        return point
+        self._ensure_loaded()
+        with self._lock:
+            hist = self._histories.get(ticker, [])
+            return hist[-1] if hist else None
 
     def get_all_latest(self) -> list[dict]:
         self._ensure_loaded()
         with self._lock:
-            tickers = list(self._ticker_data.keys())
-        points = []
-        for t in tickers:
-            pt = self.generate_point(t)
-            if pt:
-                points.append(pt)
-        return points
+            points = []
+            for t in sorted(self._ticker_data.keys()):
+                hist = self._histories.get(t, [])
+                if hist:
+                    points.append(hist[-1])
+            return points
 
 
 demo_engine = DemoStreamEngine()

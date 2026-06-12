@@ -93,6 +93,9 @@ async function fetchJson(path) {
 /* ==========================================================================
    2. Tab Navigation Handling
    ========================================================================== */
+let returnDistChartInstance = null;
+let confidenceBreakdownChartInstance = null;
+
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -103,6 +106,9 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
       setTimeout(() => {
         chartInstance.resize(document.getElementById("streamChart").clientWidth, 450);
       }, 50);
+    } else if (btn.dataset.tab === "analytics") {
+      // Re-trigger update to ensure charts render correctly when container is visible
+      renderAnalyticsDashboard(currentPredictions);
     }
   });
 });
@@ -361,7 +367,14 @@ async function updateRealtimeData() {
       const runtimeReturns = points.map(x => x.last_close > 0 ? (x.runtime_price - x.last_close) / x.last_close : 0);
       const avgRuntimeReturn = runtimeReturns.reduce((acc, x) => acc + x, 0) / points.length;
 
-      document.getElementById("summaryModel").textContent = "Hybrid LSTM-GNN";
+      // Lấy tên mô hình động từ API dashboard summary thay vì hardcode
+      fetchJson("/dashboard/summary")
+        .then(summaryData => {
+          document.getElementById("summaryModel").textContent = summaryData.model_name;
+        })
+        .catch(() => {
+          document.getElementById("summaryModel").textContent = "TSN-Attention Graph-Gated LSTM-GNN-kafka";
+        });
       document.getElementById("summaryLatestRun").textContent = points[0].run_id || "kafka_inference_latest";
       document.getElementById("summaryTickerCount").textContent = points.length;
 
@@ -373,6 +386,9 @@ async function updateRealtimeData() {
       document.getElementById("topPositive").innerHTML = `<span class="${signedClass(topPosPct)}">${escapeHtml(topPos.ticker)} (${formatPct(topPosPct)})</span>`;
       document.getElementById("topNegative").innerHTML = `<span class="${signedClass(topNegPct)}">${escapeHtml(topNeg.ticker)} (${formatPct(topNegPct)})</span>`;
       document.getElementById("summaryLastUpdated").textContent = formatDateTime(points[0].timestamp);
+
+      // Cập nhật biểu đồ và chỉ số phân tích thống kê thời gian thực
+      renderAnalyticsDashboard(points);
     }
 
     // 3. Keep History inside memory buffer (Timeline and % variations)
@@ -478,6 +494,129 @@ chartTypeSelect.addEventListener("change", () => {
   chartType = chartTypeSelect.value;
   updateChartDatasets();
 });
+
+/* ==========================================================================
+   6B. Real-time Analytics Dashboard rendering (Chart.js Engine)
+   ========================================================================== */
+function renderAnalyticsDashboard(points) {
+  if (!points || !points.length) return;
+
+  // 1. KPI calculations
+  const winCount = points.filter(x => (x.pred_return ?? 0) >= 0).length;
+  const winRate = (winCount / points.length) * 100;
+  const avgConfidence = points.reduce((acc, x) => acc + (x.graph_gate ?? 0), 0) / points.length;
+  
+  const returnVals = points.map(x => x.pred_return ?? 0);
+  const maxReturn = Math.max(...returnVals, 0);
+  const minReturn = Math.min(...returnVals, 0);
+
+  document.getElementById("kpiWinRate").textContent = `${winRate.toFixed(1)}%`;
+  document.getElementById("kpiWinCount").textContent = `${winCount} / ${points.length} mã tăng`;
+  document.getElementById("kpiAvgConfidence").textContent = `${(avgConfidence * 100).toFixed(1)}%`;
+  document.getElementById("kpiMaxReturn").textContent = `${(maxReturn * 100).toFixed(2)}%`;
+  document.getElementById("kpiMinReturn").textContent = `${(minReturn * 100).toFixed(2)}%`;
+
+  // 2. Rankings list rendering
+  const sortedByConfidence = [...points].sort((a, b) => (b.graph_gate ?? 0) - (a.graph_gate ?? 0));
+  const topConfidentHtml = sortedByConfidence.slice(0, 5).map(x => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#faf5ff; padding:8px 12px; border:1px solid #e9d5ff; border-radius:8px;">
+      <strong style="color:#581c87; font-size:0.9rem;">${escapeHtml(x.ticker)}</strong>
+      <span style="font-weight:700; color:#7e22ce; font-size:0.95rem;">${((x.graph_gate ?? 0) * 100).toFixed(1)}%</span>
+    </div>
+  `).join("");
+  document.getElementById("topConfidentList").innerHTML = topConfidentHtml;
+
+  const sortedByReturn = [...points].sort((a, b) => (b.pred_return ?? 0) - (a.pred_return ?? 0));
+  const topBullishHtml = sortedByReturn.slice(0, 5).map(x => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0fdf4; padding:8px 12px; border:1px solid #bbf7d0; border-radius:8px;">
+      <strong style="color:#14532d; font-size:0.9rem;">${escapeHtml(x.ticker)}</strong>
+      <span style="font-weight:700; color:#15803d; font-size:0.95rem;">+${((x.pred_return ?? 0) * 100).toFixed(2)}%</span>
+    </div>
+  `).join("");
+  document.getElementById("topBullishList").innerHTML = topBullishHtml;
+
+  const topBearishHtml = sortedByReturn.slice(-5).reverse().map(x => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#fef2f2; padding:8px 12px; border:1px solid #fecaca; border-radius:8px;">
+      <strong style="color:#7f1d1d; font-size:0.9rem;">${escapeHtml(x.ticker)}</strong>
+      <span style="font-weight:700; color:#b91c1c; font-size:0.95rem;">${((x.pred_return ?? 0) * 100).toFixed(2)}%</span>
+    </div>
+  `).join("");
+  document.getElementById("topBearishList").innerHTML = topBearishHtml;
+
+  // 3. Chart 1: Return distribution
+  const returnsPct = points.map(x => (x.pred_return ?? 0) * 100);
+  const minVal = Math.min(...returnsPct);
+  const maxVal = Math.max(...returnsPct);
+  const range = maxVal - minVal || 1;
+  const numBins = 5;
+  const step = range / numBins;
+  const labels = [];
+  const binCounts = Array(numBins).fill(0);
+
+  for (let i = 0; i < numBins; i++) {
+    const start = minVal + i * step;
+    const end = start + step;
+    labels.push(`${start.toFixed(2)}% - ${end.toFixed(2)}%`);
+    binCounts[i] = returnsPct.filter(v => i === numBins - 1 ? (v >= start && v <= end) : (v >= start && v < end)).length;
+  }
+
+  const ctx1 = document.getElementById("returnDistChart");
+  if (ctx1) {
+    if (returnDistChartInstance) {
+      returnDistChartInstance.data.labels = labels;
+      returnDistChartInstance.data.datasets[0].data = binCounts;
+      returnDistChartInstance.update();
+    } else {
+      returnDistChartInstance = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Số lượng cổ phiếu',
+            data: binCounts,
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+  }
+
+  // 4. Chart 2: Confidence breakdown pie
+  const high = points.filter(x => (x.graph_gate ?? 0) > 0.6).length;
+  const medium = points.filter(x => (x.graph_gate ?? 0) >= 0.3 && (x.graph_gate ?? 0) <= 0.6).length;
+  const low = points.filter(x => (x.graph_gate ?? 0) < 0.3).length;
+
+  const ctx2 = document.getElementById("confidenceBreakdownChart");
+  if (ctx2) {
+    if (confidenceBreakdownChartInstance) {
+      confidenceBreakdownChartInstance.data.datasets[0].data = [high, medium, low];
+      confidenceBreakdownChartInstance.update();
+    } else {
+      confidenceBreakdownChartInstance = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: ['Cao (>0.6)', 'Trung bình (0.3-0.6)', 'Thấp (<0.3)'],
+          datasets: [{
+            data: [high, medium, low],
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+  }
+}
 
 /* ==========================================================================
    7. Application Initialization

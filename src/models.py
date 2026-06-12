@@ -98,9 +98,11 @@ class HybridLSTMGNNNoGate(nn.Module):
 
 class HybridLSTMGNNGraphGate(nn.Module):
     def __init__(self, seq_input_dim, node_input_dim,
-                 lstm_hidden=64, gnn_hidden=32, mlp_hidden=64, dropout=0.2):
+                 lstm_hidden=64, gnn_hidden=32, mlp_hidden=64, dropout=0.2,
+                 gate_type="sigmoid"):
         super().__init__()
 
+        self.gate_type = gate_type
         self.lstm = nn.LSTM(
             input_size=seq_input_dim,
             hidden_size=lstm_hidden,
@@ -117,7 +119,10 @@ class HybridLSTMGNNGraphGate(nn.Module):
 
         self.gate_layer = nn.Linear(lstm_hidden + gnn_hidden, 1)
         nn.init.zeros_(self.gate_layer.weight)
-        nn.init.constant_(self.gate_layer.bias, -0.5)
+        if gate_type == "sigmoid":
+            nn.init.constant_(self.gate_layer.bias, -0.5)
+        else:
+            nn.init.zeros_(self.gate_layer.bias)
 
         self.mlp = nn.Sequential(
             nn.Linear(lstm_hidden + gnn_hidden, mlp_hidden),
@@ -144,7 +149,10 @@ class HybridLSTMGNNGraphGate(nn.Module):
         g = self.dropout(g)
 
         gate_input = torch.cat([h, g], dim=-1)
-        gate = torch.sigmoid(self.gate_layer(gate_input))
+        if self.gate_type == "sigmoid":
+            gate = torch.sigmoid(self.gate_layer(gate_input))
+        else:
+            gate = 1.0 + 0.5 * torch.tanh(self.gate_layer(gate_input))
 
         g_gated = gate * g
         fusion = torch.cat([h, g_gated], dim=-1)
@@ -173,9 +181,11 @@ class TemporalAttention(nn.Module):
 
 class TSNAttentionGraphGatedLSTMGNN(nn.Module):
     def __init__(self, seq_input_dim, node_input_dim,
-                 lstm_hidden=64, gnn_hidden=32, mlp_hidden=64, dropout=0.2):
+                 lstm_hidden=64, gnn_hidden=32, mlp_hidden=64, dropout=0.2,
+                 gate_type="sigmoid"):
         super().__init__()
 
+        self.gate_type = gate_type
         self.lstm = nn.LSTM(
             input_size=seq_input_dim,
             hidden_size=lstm_hidden,
@@ -194,7 +204,10 @@ class TSNAttentionGraphGatedLSTMGNN(nn.Module):
 
         self.gate_layer = nn.Linear(lstm_hidden + gnn_hidden, 1)
         nn.init.zeros_(self.gate_layer.weight)
-        nn.init.constant_(self.gate_layer.bias, -0.5)
+        if gate_type == "sigmoid":
+            nn.init.constant_(self.gate_layer.bias, -0.5)
+        else:
+            nn.init.zeros_(self.gate_layer.bias)
 
         self.mlp = nn.Sequential(
             nn.Linear(lstm_hidden + gnn_hidden, mlp_hidden),
@@ -223,7 +236,10 @@ class TSNAttentionGraphGatedLSTMGNN(nn.Module):
         g = self.dropout(g)
 
         gate_input = torch.cat([h, g], dim=-1)
-        gate = torch.sigmoid(self.gate_layer(gate_input))
+        if self.gate_type == "sigmoid":
+            gate = torch.sigmoid(self.gate_layer(gate_input))
+        else:
+            gate = 1.0 + 0.5 * torch.tanh(self.gate_layer(gate_input))
 
         g_gated = gate * g
         fusion = torch.cat([h, g_gated], dim=-1)

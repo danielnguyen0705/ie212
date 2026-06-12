@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IE212 Stock Prediction Dashboard</title>
+  <title>HỆ THỐNG DỰ BÁO GIÁ ĐÓNG CỔ PHIẾU</title>
   <!-- TradingView Lightweight Charts CDN v3.8.0 -->
   <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- Chart.js CDN v4.4.0 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -28,6 +30,7 @@
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="predictions">Bảng Thống Kê</button>
       <button class="tab-btn" data-tab="stream">Biểu Đồ Thời Gian Thực</button>
+      <button class="tab-btn" data-tab="analytics">Phân Tích Thống Kê</button>
       <button class="tab-btn" data-tab="ai">Phân tích chi tiết các cổ phiếu</button>
     </div>
 
@@ -55,7 +58,7 @@
                   <tr>
                     <th>Mã cổ phiếu</th>
                     <th>Giá Đóng Cửa Trước</th>
-                    <th>Giá Dự Đoán</th>
+                    <th>Giá Thực Tế</th>
                     <th>Biến động (Delta)</th>
                     <th>Tỷ suất dự đoán (%)</th>
                   </tr>
@@ -149,7 +152,77 @@
       </div>
     </div>
 
-    <!-- ==================== TAB 3: AI DECISION ASSISTANT ==================== -->
+    <!-- ==================== TAB 3: ANALYTICS (NEW) ==================== -->
+    <div id="tab-analytics" class="tab-panel">
+      <div class="analytics-layout" style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- KPI Cards -->
+        <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+          <div class="kpi-card bg-blue" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: 16px; padding: 20px;">
+            <div class="label" style="color:#1d4ed8; font-size:0.875rem; font-weight:600;">Tỷ Lệ Tăng Dự Đoán</div>
+            <div id="kpiWinRate" class="value" style="font-size:1.875rem; font-weight:800; color:#1e3a8a; margin-top:8px;">0.0%</div>
+            <div id="kpiWinCount" class="sub" style="font-size:0.75rem; color:#1d4ed8; margin-top:4px;">0 / 0 mã tăng</div>
+          </div>
+
+          <div class="kpi-card bg-purple" style="background: linear-gradient(135deg, #faf5ff, #f3e8ff); border: 1px solid #e9d5ff; border-radius: 16px; padding: 20px;">
+            <div class="label" style="color:#7e22ce; font-size:0.875rem; font-weight:600;">Độ Tin Cậy Trung Bình</div>
+            <div id="kpiAvgConfidence" class="value" style="font-size:1.875rem; font-weight:800; color:#581c87; margin-top:8px;">0.0%</div>
+            <div class="sub" style="font-size:0.75rem; color:#7e22ce; margin-top:4px;">Hệ số Graph Gate bình quân</div>
+          </div>
+
+          <div class="kpi-card bg-green" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 16px; padding: 20px;">
+            <div class="label" style="color:#15803d; font-size:0.875rem; font-weight:600;">Tăng Lớn Nhất Kỳ Vọng</div>
+            <div id="kpiMaxReturn" class="value" style="font-size:1.875rem; font-weight:800; color:#14532d; margin-top:8px;">0.0%</div>
+            <div class="sub" style="font-size:0.75rem; color:#15803d; margin-top:4px;">Khuyến nghị tăng cao nhất</div>
+          </div>
+
+          <div class="kpi-card bg-red" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fecaca; border-radius: 16px; padding: 20px;">
+            <div class="label" style="color:#b91c1c; font-size:0.875rem; font-weight:600;">Giảm Nhiều Nhất Kỳ Vọng</div>
+            <div id="kpiMinReturn" class="value" style="font-size:1.875rem; font-weight:800; color:#7f1d1d; margin-top:8px;">0.0%</div>
+            <div class="sub" style="font-size:0.75rem; color:#b91c1c; margin-top:4px;">Khuyến nghị giảm sâu nhất</div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="charts-row" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+          <div class="card" style="padding:20px;">
+            <h3 class="section-title">Phân phối Tỷ suất sinh lời dự kiến (%)</h3>
+            <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px; line-height: 1.3;">Biểu đồ cột này thể hiện sự phân bổ kỳ vọng tăng giảm giá của các cổ phiếu. Cột lệch phải thể hiện thị trường đang tích cực; lệch trái thể hiện thị trường tiêu cực.</p>
+            <div style="position:relative; height:260px; margin-top:10px;">
+              <canvas id="returnDistChart" style="width:100%; height:260px;"></canvas>
+            </div>
+          </div>
+
+          <div class="card" style="padding:20px;">
+            <h3 class="section-title">Phân bổ mức độ tin cậy GNN</h3>
+            <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px; line-height: 1.3;">Biểu diễn tỷ lệ độ tin cậy của GCN. Mức <b>Cao</b> thể hiện mối quan hệ ngành của cổ phiếu đang có tác động mạnh mẽ; mức <b>Thấp</b> thể hiện mô hình chỉ đang dựa trên xu hướng chuỗi thời gian nội tại.</p>
+            <div style="position:relative; height:260px; margin-top:10px;">
+              <canvas id="confidenceBreakdownChart" style="width:100%; height:260px;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticker rankings -->
+        <div class="rankings-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+          <div class="card" style="padding:16px;">
+            <h3 class="section-title" style="color:#581c87;">Top Tin Cậy Cao Nhất</h3>
+            <div id="topConfidentList" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
+          </div>
+
+          <div class="card" style="padding:16px;">
+            <h3 class="section-title" style="color:#15803d;">Top Cổ Phiếu Tăng Mạnh</h3>
+            <div id="topBullishList" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
+          </div>
+
+          <div class="card" style="padding:16px;">
+            <h3 class="section-title" style="color:#b91c1c;">Top Cổ Phiếu Giảm Mạnh</h3>
+            <div id="topBearishList" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 4: AI DECISION ASSISTANT ==================== -->
     <div id="tab-ai" class="tab-panel">
       <div id="aiRecommendationsGrid" class="ai-grid">
         <div class="loading">Đang kết nối dữ liệu khuyến nghị AI...</div>
@@ -172,6 +245,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=2.0.3"></script>
+  <script src="/static/app.js?v=2.0.4"></script>
 </body>
 </html>

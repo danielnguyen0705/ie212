@@ -7,6 +7,7 @@ type Summary = {
   ticker_count: number;
   avg_pred_return: number;
   last_updated: string;
+  model_name: string;
 };
 
 type Prediction = {
@@ -22,53 +23,74 @@ export default function RunSummary() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
+    const fetchSummaryData = () => {
+      // fetch summary
+      getDashboardSummary()
+        .then((data: any) => {
+          if (active) {
+            setSummary(data);
+          }
+        })
+        .catch((err) => {
+          if (active) {
+            if (err instanceof APIError) {
+              setError(err.detail || "Không thể tải dữ liệu tổng quan");
+            } else {
+              setError(err instanceof Error ? err.message : "Không thể tải dữ liệu tổng quan");
+            }
+          }
+        });
+
+      // fetch latest predictions để tính top +/-
+      getLatestPredictions()
+        .then((data) => {
+          if (!active) return;
+          const items: Prediction[] = (data.items ?? []).map((p) => ({
+            ...p,
+            pred_return: p.pred_return ?? 0,
+          }));
+
+          if (!items.length) return;
+
+          const max = items.reduce((a, b) =>
+            (a.pred_return ?? 0) > (b.pred_return ?? 0) ? a : b
+          );
+
+          const min = items.reduce((a, b) =>
+            (a.pred_return ?? 0) < (b.pred_return ?? 0) ? a : b
+          );
+
+          setTopPositive(
+            `${max.ticker} (${((max.pred_return ?? 0) * 100).toFixed(4)}%)`
+          );
+
+          setTopNegative(
+            `${min.ticker} (${((min.pred_return ?? 0) * 100).toFixed(4)}%)`
+          );
+        })
+        .catch((err) => {
+          console.error("Failed to load predictions for top/bottom", err);
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+    };
+
     setLoading(true);
     setError(null);
+    fetchSummaryData();
 
-    // fetch summary
-    getDashboardSummary()
-      .then((data) => setSummary(data))
-      .catch((err) => {
-        if (err instanceof APIError) {
-          setError(err.detail || "Failed to load summary");
-        } else {
-          setError(err instanceof Error ? err.message : "Failed to load summary");
-        }
-      });
+    // Polling tổng quan mỗi 3 giây
+    const interval = setInterval(fetchSummaryData, 3000);
 
-    // fetch latest predictions untuk tính top +/- 📊
-    getLatestPredictions()
-      .then((data) => {
-        const items: Prediction[] = (data.items ?? []).map((p) => ({
-          ...p,
-          pred_return: p.pred_return ?? 0,
-        }));
-
-        if (!items.length) return;
-
-        const max = items.reduce((a, b) =>
-          (a.pred_return ?? 0) > (b.pred_return ?? 0) ? a : b
-        );
-
-        const min = items.reduce((a, b) =>
-          (a.pred_return ?? 0) < (b.pred_return ?? 0) ? a : b
-        );
-
-        setTopPositive(
-          `${max.ticker} (${((max.pred_return ?? 0) * 100).toFixed(4)}%)`
-        );
-
-        setTopNegative(
-          `${min.ticker} (${((min.pred_return ?? 0) * 100).toFixed(4)}%)`
-        );
-      })
-      .catch((err) => {
-        // Silent fail for predictions, as summary is more important
-        console.error("Failed to load predictions for top/bottom", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
   if (error) {
@@ -85,7 +107,7 @@ export default function RunSummary() {
   if (loading) {
     return (
       <div className="bg-white shadow rounded-xl p-5">
-        <div className="text-gray-500 text-sm">Loading summary...</div>
+        <div className="text-gray-500 text-sm">Đang tải dữ liệu tổng quan...</div>
       </div>
     );
   }
@@ -93,41 +115,41 @@ export default function RunSummary() {
   if (!summary) {
     return (
       <div className="bg-white shadow rounded-xl p-5">
-        <p className="text-gray-400 text-sm">No summary data available</p>
+        <p className="text-gray-400 text-sm">Không có dữ liệu tổng quan</p>
       </div>
     );
   }
 
   return (
     <div className="bg-white shadow rounded-xl p-5 space-y-3">
-      <h2 className="font-semibold text-lg">
-        Run Summary
+      <h2 className="font-semibold text-lg text-slate-800 border-b pb-2">
+        Tổng quan phiên
       </h2>
 
       <SummaryRow
-        label="Latest Run"
-        value={summary.latest_run_id}
-      />
-
-      <SummaryRow
-        label="Ticker Count"
-        value={summary.ticker_count.toString()}
-      />
-
-      <SummaryRow
-        label="Avg Pred Return"
-        value={`${(summary.avg_pred_return * 100).toFixed(4)}%`}
+        label="Mô hình dự đoán"
+        value={summary.model_name}
         highlight
       />
 
       <SummaryRow
-        label="Last Updated"
-        value={new Date(summary.last_updated).toLocaleString()}
+        label="Mã định danh phiên"
+        value={summary.latest_run_id}
+      />
+
+      <SummaryRow
+        label="Số lượng cổ phiếu"
+        value={summary.ticker_count.toString()}
+      />
+
+      <SummaryRow
+        label="Tỷ suất sinh lời trung bình"
+        value={`${(summary.avg_pred_return * 100).toFixed(4)}%`}
       />
 
       {topPositive && (
         <SummaryRow
-          label="Top Positive"
+          label="Cổ phiếu tăng mạnh nhất"
           value={topPositive}
           positive
         />
@@ -135,15 +157,19 @@ export default function RunSummary() {
 
       {topNegative && (
         <SummaryRow
-          label="Top Negative"
+          label="Cổ phiếu giảm mạnh nhất"
           value={topNegative}
           negative
         />
       )}
+
+      <SummaryRow
+        label="Cập nhật cuối cùng"
+        value={new Date(summary.last_updated).toLocaleString("vi-VN")}
+      />
     </div>
   );
 }
-
 
 function SummaryRow({
   label,
@@ -160,11 +186,9 @@ function SummaryRow({
 }) {
   return (
     <div className="flex justify-between items-center bg-gray-50 px-4 py-2 rounded-lg border">
-
       <span className="text-gray-500 text-sm">
         {label}
       </span>
-
       <span
         className={`font-semibold ${
           highlight
@@ -178,7 +202,6 @@ function SummaryRow({
       >
         {value}
       </span>
-
     </div>
   );
 }

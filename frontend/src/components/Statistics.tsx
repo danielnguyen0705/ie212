@@ -32,26 +32,43 @@ export default function Statistics({ runId }: StatisticsProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
+    const fetchStats = () => {
+      getRunDetail(runId)
+        .then((json) => {
+          if (active) {
+            setPredictions(json.items ?? []);
+            setLoading(false);
+          }
+        })
+        .catch((err) => {
+          if (active) {
+            if (err instanceof APIError) {
+              setError(
+                err.status === 404
+                  ? `Không tìm thấy phiên dự báo: ${runId}`
+                  : err.detail || "Không thể tải số liệu thống kê"
+              );
+            } else {
+              setError(err instanceof Error ? err.message : "Không thể tải số liệu thống kê");
+            }
+            setLoading(false);
+          }
+        });
+    };
+
     setLoading(true);
     setError(null);
+    fetchStats();
 
-    getRunDetail(runId)
-      .then((json) => {
-        setPredictions(json.items ?? []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err instanceof APIError) {
-          setError(
-            err.status === 404
-              ? `Run not found: ${runId}`
-              : err.detail || "Failed to load statistics"
-          );
-        } else {
-          setError(err instanceof Error ? err.message : "Failed to load statistics");
-        }
-        setLoading(false);
-      });
+    // Polling mỗi 3 giây để cập nhật số liệu thời gian thực
+    const interval = setInterval(fetchStats, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, [runId]);
 
   if (error) {
@@ -69,7 +86,7 @@ export default function Statistics({ runId }: StatisticsProps) {
     return (
       <div className="bg-white shadow rounded-xl p-6">
         <div className="text-center py-8 text-gray-500">
-          Loading statistics...
+          Đang tải dữ liệu phân tích thống kê...
         </div>
       </div>
     );
@@ -78,30 +95,30 @@ export default function Statistics({ runId }: StatisticsProps) {
   if (predictions.length === 0) {
     return (
       <div className="bg-white shadow rounded-xl p-6 text-center py-12">
-        <p className="text-gray-400">No predictions available to analyze</p>
+        <p className="text-gray-400">Không có dữ liệu dự đoán để phân tích</p>
       </div>
     );
   }
 
-  // ===== CALCULATIONS =====
+  // ===== TÍNH TOÁN CÁC CHỈ SỐ =====
 
-  // Win rate
+  // Tỷ lệ dự đoán tăng (Win Rate giả lập)
   const winCount = predictions.filter((p) => (p.pred_return ?? 0) >= 0).length;
   const winRate = predictions.length > 0 ? (winCount / predictions.length) * 100 : 0;
 
-  // Avg confidence
+  // Độ tin cậy trung bình của GCN
   const avgConfidence =
     predictions.length > 0
       ? predictions.reduce((sum, p) => sum + (p.graph_gate ?? 0), 0) /
         predictions.length
       : 0;
 
-  // Max/Min returns
+  // Lợi nhuận lớn nhất/nhỏ nhất dự đoán
   const returnValues = predictions.map((p) => p.pred_return ?? 0);
   const maxReturn = Math.max(...returnValues, 0);
   const minReturn = Math.min(...returnValues, 0);
 
-  // Top/Bottom tickers by confidence
+  // Top cổ phiếu có độ tin cậy cao nhất
   const sortedByConfidence = [...predictions].sort(
     (a, b) => (b.graph_gate ?? 0) - (a.graph_gate ?? 0)
   );
@@ -110,7 +127,7 @@ export default function Statistics({ runId }: StatisticsProps) {
     confidence: p.graph_gate ?? 0,
   }));
 
-  // Top/Bottom tickers by return
+  // Top cổ phiếu tăng/giảm mạnh nhất
   const sortedByReturn = [...predictions].sort(
     (a, b) => (b.pred_return ?? 0) - (a.pred_return ?? 0)
   );
@@ -123,26 +140,26 @@ export default function Statistics({ runId }: StatisticsProps) {
     return: (p.pred_return ?? 0) * 100,
   }));
 
-  // Return distribution (bins)
+  // Phân phối tỷ suất lợi nhuận (bins)
   const returnBins = createBins(
     predictions.map((p) => (p.pred_return ?? 0) * 100),
     5
   );
 
-  // Confidence distribution (bins)
+  // Phân phối độ tin cậy (bins)
   const confidenceBins = createBins(
     predictions.map((p) => p.graph_gate ?? 0),
     5
   );
 
-  // Scatter data: confidence vs absolute return
+  // Biểu đồ phân tán: độ tin cậy vs biến động tuyệt đối
   const scatterData = predictions.map((p) => ({
     x: p.graph_gate ?? 0,
     y: Math.abs(p.pred_return ?? 0) * 100,
     ticker: p.ticker,
   }));
 
-  // Confidence brackets
+  // Phân loại độ tin cậy
   const highConfident = predictions.filter((p) => (p.graph_gate ?? 0) > 0.6).length;
   const mediumConfident = predictions.filter(
     (p) => (p.graph_gate ?? 0) >= 0.3 && (p.graph_gate ?? 0) <= 0.6
@@ -150,26 +167,25 @@ export default function Statistics({ runId }: StatisticsProps) {
   const lowConfident = predictions.filter((p) => (p.graph_gate ?? 0) < 0.3).length;
 
   const confidenceBreakdown = [
-    { name: "High (>0.6)", value: highConfident, fill: "#10b981" },
-    { name: "Medium (0.3-0.6)", value: mediumConfident, fill: "#f59e0b" },
-    { name: "Low (<0.3)", value: lowConfident, fill: "#ef4444" },
+    { name: "Cao (>0.6)", value: highConfident, fill: "#10b981" },
+    { name: "Trung bình (0.3-0.6)", value: mediumConfident, fill: "#f59e0b" },
+    { name: "Thấp (<0.3)", value: lowConfident, fill: "#ef4444" },
   ];
-
 
   return (
     <div className="space-y-6">
-      {/* ===== KPI CARDS ===== */}
+      {/* ===== THẺ KPI ===== */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Win Rate */}
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 shadow-sm border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-blue-600 font-medium">Win Rate</p>
+              <p className="text-sm text-blue-600 font-medium">Tỷ Lệ Tăng Dự Đoán</p>
               <p className="text-3xl font-bold text-blue-900">
                 {winRate.toFixed(1)}%
               </p>
               <p className="text-xs text-blue-600 mt-1">
-                {winCount} / {predictions.length} positive
+                {winCount} / {predictions.length} mã dự kiến tăng
               </p>
             </div>
             <TrendingUp className="w-12 h-12 text-blue-300" />
@@ -180,12 +196,12 @@ export default function Statistics({ runId }: StatisticsProps) {
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 shadow-sm border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-600 font-medium">Avg Confidence</p>
+              <p className="text-sm text-purple-600 font-medium">Độ Tin Cậy Trung Bình</p>
               <p className="text-3xl font-bold text-purple-900">
                 {(avgConfidence * 100).toFixed(1)}%
               </p>
               <p className="text-xs text-purple-600 mt-1">
-                Graph Gate Average
+                Hệ số Graph Gate bình quân
               </p>
             </div>
             <Zap className="w-12 h-12 text-purple-300" />
@@ -196,12 +212,12 @@ export default function Statistics({ runId }: StatisticsProps) {
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 shadow-sm border border-green-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-green-600 font-medium">Max Return</p>
+              <p className="text-sm text-green-600 font-medium">Tăng Lớn Nhất Kỳ Vọng</p>
               <p className="text-3xl font-bold text-green-900">
                 {(maxReturn * 100).toFixed(2)}%
               </p>
               <p className="text-xs text-green-600 mt-1">
-                Best prediction
+                Khuyến nghị tăng cao nhất
               </p>
             </div>
             <TrendingUp className="w-12 h-12 text-green-300" />
@@ -212,12 +228,12 @@ export default function Statistics({ runId }: StatisticsProps) {
         <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5 shadow-sm border border-red-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-red-600 font-medium">Min Return</p>
+              <p className="text-sm text-red-600 font-medium">Giảm Nhiều Nhất Kỳ Vọng</p>
               <p className="text-3xl font-bold text-red-900">
                 {(minReturn * 100).toFixed(2)}%
               </p>
               <p className="text-xs text-red-600 mt-1">
-                Worst prediction
+                Khuyến nghị giảm sâu nhất
               </p>
             </div>
             <TrendingDown className="w-12 h-12 text-red-300" />
@@ -225,14 +241,17 @@ export default function Statistics({ runId }: StatisticsProps) {
         </div>
       </div>
 
-      {/* ===== CHARTS GRID ===== */}
+      {/* ===== BIỂU ĐỒ ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 1. Return Distribution */}
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-semibold mb-1 flex items-center gap-2">
             <Target className="w-5 h-5 text-blue-600" />
-            Predicted Return Distribution
+            Phân phối Tỷ suất sinh lời dự kiến (%)
           </h3>
+          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            Biểu đồ cột này thể hiện sự phân bổ kỳ vọng tăng giảm giá của các cổ phiếu. Cột lệch phải thể hiện thị trường đang tích cực; lệch trái thể hiện thị trường tiêu cực.
+          </p>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={returnBins}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -246,10 +265,13 @@ export default function Statistics({ runId }: StatisticsProps) {
 
         {/* 2. Confidence Distribution */}
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-semibold mb-1 flex items-center gap-2">
             <Zap className="w-5 h-5 text-purple-600" />
-            Confidence (Graph Gate) Distribution
+            Phân bổ mức độ tin cậy GNN
           </h3>
+          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            Biểu diễn tỷ lệ độ tin cậy của GCN. Mức <b>Cao</b> thể hiện mối quan hệ ngành của cổ phiếu đang có tác động mạnh mẽ; mức <b>Thấp</b> thể hiện mô hình chỉ đang dựa trên xu hướng chuỗi thời gian nội tại.
+          </p>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={confidenceBins}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -265,7 +287,7 @@ export default function Statistics({ runId }: StatisticsProps) {
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Target className="w-5 h-5 text-orange-600" />
-            Confidence Breakdown
+            Phân bổ mức độ tin cậy GNN
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -304,7 +326,7 @@ export default function Statistics({ runId }: StatisticsProps) {
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Zap className="w-5 h-5 text-indigo-600" />
-            Confidence vs Return Magnitude
+            Độ tương quan: Độ tin cậy vs Biên độ biến động
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -312,22 +334,22 @@ export default function Statistics({ runId }: StatisticsProps) {
               <XAxis
                 type="number"
                 dataKey="x"
-                name="Confidence"
+                name="Độ tin cậy"
                 domain={[0, 1]}
                 ticks={[0, 0.2, 0.4, 0.6, 0.8, 1]}
-                label={{ value: "Confidence (0-1)", position: "insideBottom", offset: -10 }}
+                label={{ value: "Độ tin cậy (0-1)", position: "insideBottom", offset: -10 }}
               />
               <YAxis
                 type="number"
                 dataKey="y"
-                name="Abs Return %"
+                name="Biến động tuyệt đối %"
                 domain={[0, "dataMax"]}
                 tickCount={5}
                 tickFormatter={(value) =>
                   Number(value) === 0 ? "0" : Number(value).toFixed(4)
                 }
                 label={{
-                  value: "Abs Return (%)",
+                  value: "Biến động (%)",
                   angle: -90,
                   position: "left",
                   offset: 20,
@@ -337,7 +359,7 @@ export default function Statistics({ runId }: StatisticsProps) {
               />
               <Tooltip cursor={{ strokeDasharray: "3 3" }} />
               <Scatter
-                name="Predictions"
+                name="Cổ phiếu"
                 data={scatterData}
                 fill="#8b5cf6"
                 fillOpacity={0.6}
@@ -347,17 +369,17 @@ export default function Statistics({ runId }: StatisticsProps) {
         </div>
       </div>
 
-      {/* ===== TOP/BOTTOM TICKERS ===== */}
+      {/* ===== BẢNG TOP CỔ PHIẾU ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Confident Tickers */}
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4">Top Confident Tickers</h3>
+          <h3 className="text-lg font-semibold mb-4 text-slate-800">Top Tin Cậy Cao Nhất</h3>
           <div className="space-y-3">
             {topConfidentTickers.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
                 <div>
                   <p className="font-semibold text-gray-800">{item.ticker}</p>
-                  <p className="text-xs text-gray-500">Confidence</p>
+                  <p className="text-xs text-gray-500">Mức tin cậy</p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-purple-600">
@@ -371,13 +393,13 @@ export default function Statistics({ runId }: StatisticsProps) {
 
         {/* Top Return Tickers */}
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4 text-green-600">Top Bullish Predictions</h3>
+          <h3 className="text-lg font-semibold mb-4 text-green-600">Top Cổ Phiếu Tăng Mạnh</h3>
           <div className="space-y-3">
             {topReturnTickers.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-100">
                 <div>
                   <p className="font-semibold text-gray-800">{item.ticker}</p>
-                  <p className="text-xs text-gray-500">Predicted Return</p>
+                  <p className="text-xs text-gray-500">Tỷ suất kỳ vọng</p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-green-600">
@@ -391,13 +413,13 @@ export default function Statistics({ runId }: StatisticsProps) {
 
         {/* Bottom Return Tickers */}
         <div className="bg-white shadow rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4 text-red-600">Top Bearish Predictions</h3>
+          <h3 className="text-lg font-semibold mb-4 text-red-600">Top Cổ Phiếu Giảm Mạnh</h3>
           <div className="space-y-3">
             {bottomReturnTickers.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center p-3 bg-red-50 rounded-lg border border-red-100">
                 <div>
                   <p className="font-semibold text-gray-800">{item.ticker}</p>
-                  <p className="text-xs text-gray-500">Predicted Return</p>
+                  <p className="text-xs text-gray-500">Tỷ suất kỳ vọng</p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-red-600">
@@ -413,7 +435,7 @@ export default function Statistics({ runId }: StatisticsProps) {
   );
 }
 
-// Helper: Create bins for distribution
+// Helper: Phân nhóm bins dữ liệu
 function createBins(values: number[], numBins: number) {
   if (values.length === 0) return [];
 
@@ -455,7 +477,7 @@ function createBins(values: number[], numBins: number) {
     ).length;
 
     bins.push({
-      bin: `${formatLabel(start)}-${formatLabel(end)}`,
+      bin: `${formatLabel(start)} đến ${formatLabel(end)}`,
       count,
     });
     start = end;

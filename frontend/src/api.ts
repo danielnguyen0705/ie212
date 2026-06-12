@@ -87,6 +87,18 @@ export async function getLatestPredictions() {
   return handleResponse<RunResponse>(res);
 }
 
+export async function getStreamLatest() {
+  const res = await fetch(`${API_BASE}/api/stream/latest`);
+  return handleResponse<any[]>(res);
+}
+
+export async function getAIAnalyze(ticker: string, runtimePrice: number, delta: number) {
+  const res = await fetch(
+    `${API_BASE}/api/ai/analyze?ticker=${ticker}&runtime_price=${runtimePrice}&delta=${delta}`
+  );
+  return handleResponse<any>(res);
+}
+
 export async function getRecentRuns(limit: number = 10) {
   const res = await fetch(`${API_BASE}/predictions/runs/recent?limit=${limit}`);
   return handleResponse<{

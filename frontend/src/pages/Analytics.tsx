@@ -14,6 +14,8 @@ export default function Analytics({ runId, onRefresh, onSelectRun }: AnalyticsPr
     <Layout
       runId={runId}
       onRefresh={onRefresh}
+      activeTab="predictions"
+      onTabChange={() => {}}
       left={<Statistics runId={runId} />}
       right={
         <>

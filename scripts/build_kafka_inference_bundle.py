@@ -112,17 +112,10 @@ def load_raw_price_csv(csv_path: Path, ticker: str) -> pd.DataFrame:
     return df
 
 
-def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    out["Return"] = out["Close"].pct_change().fillna(0.0)
-    out["MA5"] = out["Close"].rolling(5).mean()
-    out["MA20"] = out["Close"].rolling(20).mean()
-    out["Volatility5"] = out["Return"].rolling(5).std()
-    out["Volatility20"] = out["Return"].rolling(20).std()
-    out = out.dropna().copy()
-    out.index = pd.to_datetime(out.index)
-    out = out.sort_index()
-    return out
+from src.data_loader import _postprocess_price_frame
+
+def engineer_features(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+    return _postprocess_price_frame(df, ticker)
 
 
 def latest_ticks_from_parquet(df: pd.DataFrame) -> list[tuple[str, float, pd.Timestamp]]:
@@ -220,7 +213,7 @@ def main():
 
         raw_df = load_raw_price_csv(csv_path, ticker)
         merged_df = merge_kafka_tick_into_history(raw_df, price, event_time)
-        feat_df = engineer_features(merged_df)
+        feat_df = engineer_features(merged_df, ticker)
 
         if len(feat_df) <= args.lookback:
             print(f"[skip] not enough engineered rows for {ticker}: {len(feat_df)}")
@@ -257,8 +250,8 @@ def main():
     scaler = RollingMinMaxScaler(window_size=args.window_size)
     scaled_node_3d = scaler.fit_transform(full_node_3d, close_idx=TARGET_IDX)
 
-    # Lấy Close-only scaled tensor
-    scaled_close_only_3d = scaled_node_3d[:, :, TARGET_IDX:TARGET_IDX + 1]
+    # Sử dụng toàn bộ 17 đặc trưng cho LSTM trong mô hình TSN-Attention mới
+    scaled_close_only_3d = scaled_node_3d.copy()
 
     return_2d = np.stack(
         [data_dict[t]["Return"].values.astype(np.float32) for t in tickers],

@@ -17,44 +17,12 @@ from src.graph_builder import build_combined_graph_from_train_window
 TARGET_IDX = FEATURE_COLS.index(TARGET_COL)
 
 
+from src.data_loader import _postprocess_price_frame
+
 def read_one_csv(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
-
-    # chuẩn hóa cột ngày
-    date_col = None
-    for c in ["Date", "date", "Datetime", "datetime"]:
-        if c in df.columns:
-            date_col = c
-            break
-
-    if date_col is not None:
-        df[date_col] = pd.to_datetime(df[date_col])
-        df = df.set_index(date_col)
-    else:
-        df.index = pd.to_datetime(df.index)
-
-    keep_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
-    df = df[keep_cols].copy()
-
-    if "Close" not in df.columns:
-        raise ValueError(f"{csv_path.name} không có cột Close")
-    if "Volume" not in df.columns:
-        df["Volume"] = 0.0
-
-    df["Close"] = pd.to_numeric(df["Close"], errors="coerce").ffill()
-    df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0.0)
-
-    df["Return"] = df["Close"].pct_change().fillna(0.0)
-    df["MA5"] = df["Close"].rolling(5).mean()
-    df["MA20"] = df["Close"].rolling(20).mean()
-    df["Volatility5"] = df["Return"].rolling(5).std()
-    df["Volatility20"] = df["Return"].rolling(20).std()
-
-    df = df.dropna().copy()
-    df.index = pd.to_datetime(df.index)
-    df = df.sort_index()
-
-    return df
+    ticker = csv_path.stem
+    return _postprocess_price_frame(df, ticker)
 
 
 def main():
@@ -131,8 +99,8 @@ def main():
     scaler = RollingMinMaxScaler(window_size=args.window_size)
     scaled_node_3d = scaler.fit_transform(full_node_3d, close_idx=TARGET_IDX)
 
-    # Tạo close_only_3d từ scaled node features
-    scaled_close_only_3d = scaled_node_3d[:, :, TARGET_IDX:TARGET_IDX + 1]
+    # Sử dụng toàn bộ 17 đặc trưng cho LSTM trong mô hình TSN-Attention mới
+    scaled_close_only_3d = scaled_node_3d.copy()
 
     # Return không được scale (giữ nguyên để làm đồ thị, hoặc scale tùy ý)
     return_2d = np.stack(

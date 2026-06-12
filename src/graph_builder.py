@@ -191,8 +191,22 @@ def build_sparse_pearson_graph_from_train_window(
     # Lấy giá trị tuyệt đối (quan tâm cả tương quan dương lẫn âm)
     pearson_raw = np.abs(corr).astype(np.float32)
 
+    # Tính ngưỡng Pearson động nếu threshold là "auto"
+    if isinstance(threshold, str) and "auto" in threshold:
+        triu_indices = np.triu_indices_from(pearson_raw, k=1)
+        off_diag_vals = pearson_raw[triu_indices]
+        if len(off_diag_vals) > 0:
+            actual_threshold = float(np.percentile(off_diag_vals, 70))
+        else:
+            actual_threshold = 0.45
+    else:
+        try:
+            actual_threshold = float(threshold)
+        except Exception:
+            actual_threshold = 0.45
+
     # Lọc theo ngưỡng: cạnh yếu (|corr| < threshold) → trọng số = 0
-    pearson_raw[pearson_raw < threshold] = 0.0
+    pearson_raw[pearson_raw < actual_threshold] = 0.0
     np.fill_diagonal(pearson_raw, 1.0)  # Self-loop
 
     # Giữ top-K cạnh mạnh nhất mỗi node
